@@ -67,7 +67,7 @@ static/
 
 ## ▶️ Run Locally
 
-git clone https://github.com/samruddhikhade/colorify-project.git  
+git clone https://github.com/samruddhikhade/colorify.git  
 cd colorify-project  
 
 python -m venv venv  
