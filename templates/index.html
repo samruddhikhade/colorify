@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Color·ify — Bring Photos Back to Life</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f7c6d9">
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,300;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════
+   TOKENS
+═══════════════════════════════════ */
+:root {
+  --cream:#faf7f0; --cream-d:#f2e8da; --cream-dd:#e8dace;
+  --white:#ffffff; --ink:#1e1810; --ink-s:#3a2e20;
+  --muted:#8c7a68; --border:#e4d4c0; --border-s:#ede0ce;
+  --rose:#e8789a; --peach:#f0a070; --gold:#e8c44a;
+  --sage:#7ec8a0; --sky:#78b8e8; --lav:#a890e0;
+  --coral:#d4604a; --blush:#f2c0b0; --butter:#f8e090;
+  --bg:var(--cream); --surf:var(--white); --surf2:var(--cream-d);
+  --text:var(--ink); --texts:var(--muted); --line:var(--border);
+  --rs:8px;--rm:16px;--rl:24px;--rxl:32px;
+  --s1:0 2px 12px rgba(30,24,16,.06);
+  --s2:0 8px 36px rgba(30,24,16,.10);
+  --s3:0 24px 72px rgba(30,24,16,.15);
+  --ease:cubic-bezier(.4,0,.2,1);
+  --fd:'Playfair Display',Georgia,serif;
+  --fb:'DM Sans',system-ui,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#120e08;--surf:#1c1610;--surf2:#241e14;
+  --text:#f0e4d0;--texts:#9a8870;--line:#2c2418;
+  --border:#2c2418;--border-s:#342a1c;
+  --s1:0 2px 12px rgba(0,0,0,.35);
+  --s2:0 8px 36px rgba(0,0,0,.45);
+  --s3:0 24px 72px rgba(0,0,0,.55);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--fb);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;transition:background .4s,color .4s;cursor:none}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.03;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");background-size:200px}
+body::after{content:'';position:fixed;top:0;left:0;right:0;height:3px;z-index:300;background:linear-gradient(90deg,var(--rose),var(--peach),var(--gold),var(--sage),var(--sky),var(--lav),var(--rose));background-size:200%;animation:stripe 4s linear infinite}
+@keyframes stripe{to{background-position:200% 0}}
+
+/* ═══════════════════════════════════
+   CURSOR
+═══════════════════════════════════ */
+#cur{position:fixed;pointer-events:none;z-index:9999;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--rose);transform:translate(-50%,-50%);transition:width .2s,height .2s,background .2s,opacity .2s;opacity:0}
+#cur.vis{opacity:1}#cur.hov{width:38px;height:38px;background:rgba(232,120,154,.1)}
+#cdot{position:fixed;pointer-events:none;z-index:9999;width:4px;height:4px;border-radius:50%;background:var(--rose);transform:translate(-50%,-50%);opacity:0;transition:opacity .2s}
+#cdot.vis{opacity:1}
+.sp{position:fixed;pointer-events:none;z-index:9998;border-radius:50%;animation:spA .65s ease forwards}
+@keyframes spA{0%{opacity:.9;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(0)}}
+
+/* ═══════════════════════════════════
+   SPLASH — PEACH & LAVENDER DREAMY
+═══════════════════════════════════ */
+#splash{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.8rem;overflow:hidden;animation:splashOut .9s 3.4s var(--ease) forwards}
+@keyframes splashOut{to{opacity:0;pointer-events:none;visibility:hidden}}
+
+/* Peach-lavender gradient base */
+#splash-bg{position:absolute;inset:0;background:linear-gradient(135deg,#fef0e8 0%,#f8e4f0 35%,#ede8f8 65%,#e8f0f8 100%);animation:bgShimmer 4s ease-in-out infinite alternate}
+@keyframes bgShimmer{0%{filter:brightness(1)}100%{filter:brightness(1.04)}}
+
+/* Soft fog blobs */
+.sfog{position:absolute;border-radius:50%;filter:blur(70px);pointer-events:none;animation:fogUp 2s ease forwards;opacity:0}
+@keyframes fogUp{to{opacity:1}}
+.sfog-1{width:480px;height:480px;background:radial-gradient(circle,rgba(232,120,154,.25),transparent 70%);top:-80px;left:-60px;animation-delay:.1s}
+.sfog-2{width:360px;height:360px;background:radial-gradient(circle,rgba(168,144,224,.22),transparent 70%);bottom:-60px;right:-40px;animation-delay:.3s}
+.sfog-3{width:280px;height:280px;background:radial-gradient(circle,rgba(240,160,112,.18),transparent 70%);top:30%;right:10%;animation-delay:.2s}
+.sfog-4{width:220px;height:220px;background:radial-gradient(circle,rgba(126,200,160,.14),transparent 70%);bottom:20%;left:8%;animation-delay:.4s}
+
+/* Floating pastel petals */
+.petal{position:absolute;border-radius:50% 50% 50% 0;pointer-events:none;animation:petalFloat linear infinite}
+@keyframes petalFloat{0%{transform:translateY(0) rotate(0deg);opacity:.7}50%{opacity:1}100%{transform:translateY(-100vh) rotate(360deg);opacity:0}}
+
+.splash-inner{position:relative;z-index:2;text-align:center;display:flex;flex-direction:column;align-items:center;gap:1.1rem}
+.splash-logo{font-family:var(--fd);font-size:clamp(3.2rem,11vw,6.5rem);font-weight:700;letter-spacing:-.5px;line-height:1;animation:sUp .9s .4s var(--ease) both}
+@keyframes sUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.sl-c{background:linear-gradient(110deg,#e8789a,#f0a070);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sl-dot{color:#e8c44a;-webkit-text-fill-color:#e8c44a}
+.sl-i{font-style:italic;font-weight:300;background:linear-gradient(110deg,#a890e0,#78b8e8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* Paint-smear progress bar */
+.splash-bar{position:relative;width:0;height:8px;border-radius:999px;background:linear-gradient(90deg,var(--rose),var(--peach),var(--gold),var(--sage),var(--sky),var(--lav));animation:barGrow 2.2s .6s var(--ease) forwards;box-shadow:0 2px 16px rgba(232,120,154,.35);overflow:visible}
+@keyframes barGrow{to{width:240px}}
+.splash-bar::after{content:'';position:absolute;right:-4px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 0 12px rgba(232,120,154,.6);animation:barGrow 2.2s .6s var(--ease) forwards}
+
+.splash-tagline{font-family:var(--fd);font-style:italic;font-weight:300;font-size:1.15rem;color:#8c6a78;animation:sUp .8s 1s var(--ease) both;min-height:1.7rem}
+.splash-sub{font-size:.7rem;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:#b09090;animation:sUp .8s 1.2s var(--ease) both}
+
+/* Floating dots */
+.sdot{position:absolute;border-radius:50%;pointer-events:none;animation:dotBob ease-in-out infinite alternate}
+@keyframes dotBob{0%{transform:translateY(0) scale(1)}100%{transform:translateY(-16px) scale(1.1)}}
+
+/* ═══════════════════════════════════
+   LAYOUT
+═══════════════════════════════════ */
+.page{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:0 2rem 10rem}
+
+/* ═══════════════════════════════════
+   HEADER
+═══════════════════════════════════ */
+header{display:flex;align-items:center;justify-content:space-between;padding:2.4rem 0;border-bottom:1px solid var(--line);margin-bottom:4rem;animation:fadeUp .6s .2s var(--ease) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.logo{font-family:var(--fd);font-size:1.75rem;font-weight:700;letter-spacing:-.2px;color:var(--text);text-decoration:none;line-height:1}
+.logo .dot{color:var(--gold)}
+.logo em{font-style:italic;font-weight:300;background:linear-gradient(90deg,var(--rose),var(--lav));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr-r{display:flex;align-items:center;gap:.75rem}
+.theme-btn{width:36px;height:36px;border-radius:50%;background:var(--surf2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:none;transition:transform .2s,border-color .2s}
+.theme-btn:hover{transform:scale(1.1);border-color:var(--rose)}
+.theme-btn svg{width:16px;height:16px;stroke:var(--texts)}
+.icon-moon{display:block}.icon-sun{display:none}
+[data-theme="dark"] .icon-moon{display:none}[data-theme="dark"] .icon-sun{display:block}
+.nav-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.38rem 1rem;border:1px solid var(--line);border-radius:999px;font-size:.73rem;font-weight:500;color:var(--texts);letter-spacing:.08em;text-transform:uppercase}
+.ldot{width:7px;height:7px;border-radius:50%;background:#5cb85c;animation:blink 2.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ═══════════════════════════════════
+   HERO
+═══════════════════════════════════ */
+.hero{margin-bottom:3.5rem;animation:fadeUp .7s .3s var(--ease) both}
+.eyebrow{display:inline-flex;align-items:center;gap:.55rem;font-size:.69rem;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--rose);margin-bottom:1.3rem}
+.eyebrow::before{content:'';width:24px;height:1px;background:var(--rose)}
+.hero h1{font-family:var(--fd);font-size:clamp(2.8rem,7vw,5rem);font-weight:700;line-height:1.06;letter-spacing:-.5px;color:var(--text);margin-bottom:1.1rem}
+.hero h1 em{font-style:italic;font-weight:300;background:linear-gradient(110deg,var(--rose),var(--peach),var(--lav));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:1rem;font-weight:300;color:var(--texts);line-height:1.75;max-width:440px}
+.tw-pill{display:inline-flex;align-items:center;gap:.75rem;margin-top:1.6rem;background:var(--surf);border:1px solid var(--border-s);border-radius:999px;padding:.55rem 1.2rem .55rem .7rem;box-shadow:var(--s1);transition:box-shadow .3s}
+.tw-pill:hover{box-shadow:var(--s2)}
+.tw-sw{width:28px;height:28px;border-radius:50%;flex-shrink:0;transition:background .6s var(--ease);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.tw-txt{font-family:var(--fd);font-style:italic;font-weight:300;font-size:1rem;color:var(--texts);min-width:240px}
+.tw-cur{display:inline-block;width:2px;height:1em;background:var(--rose);margin-left:1px;vertical-align:middle;animation:blink .85s ease-in-out infinite}
+
+/* ═══════════════════════════════════
+   POLAROID SWATCH GRID
+═══════════════════════════════════ */
+.pol-section{margin-bottom:4rem;animation:fadeUp .6s .5s var(--ease) both}
+.section-hdr{display:flex;align-items:baseline;gap:.8rem;margin-bottom:1.5rem}
+.section-title{font-family:var(--fd);font-size:1.3rem;font-weight:700;color:var(--text)}
+.section-title em{font-style:italic;font-weight:300;color:var(--rose)}
+.section-sub{font-size:.76rem;font-weight:300;color:var(--texts)}
+
+/* ── Editorial stacked rows ── */
+.pol-grid{display:flex;flex-direction:column;gap:0;position:relative;padding-left:2.2rem}
+
+.pol-card{
+  display:grid;
+  grid-template-columns:52px 1fr auto;
+  align-items:center;
+  gap:0;
+  border-bottom:1px solid var(--border-s);
+  padding:.85rem 0;
+  cursor:none;
+  transition:background .2s var(--ease);
+  position:relative;
+  animation:polIn .4s var(--ease) both;
+}
+@keyframes polIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:translateX(0)}}
+.pol-card:first-child{border-top:1px solid var(--border-s)}
+.pol-card:hover{background:var(--surf2);border-radius:var(--rs);border-color:transparent}
+
+/* Left — square colour swatch */
+.pol-color{
+  width:52px;height:52px;border-radius:12px;
+  flex-shrink:0;position:relative;overflow:hidden;
+  transition:transform .3s var(--ease),box-shadow .3s;
+  box-shadow:var(--s1);
+}
+.pol-color::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.22),transparent 60%)}
+.pol-card:hover .pol-color{transform:scale(1.08);box-shadow:var(--s2)}
+
+/* Middle — editorial text */
+.pol-body{padding:0 1.2rem;flex:1}
+.pol-name{font-family:var(--fd);font-size:1rem;font-weight:600;color:var(--text);margin-bottom:.1rem}
+.pol-quote{font-size:.74rem;font-style:italic;color:var(--texts);line-height:1.5}
+
+/* Right — hex + shade dots + tag */
+.pol-right{display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;padding-right:.1rem}
+.pol-hex{font-size:.64rem;font-family:monospace;color:var(--texts);letter-spacing:.05em}
+.pol-shades{display:flex;gap:3px}
+.pol-shade{width:13px;height:13px;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.1);transition:transform .2s}
+.pol-card:hover .pol-shade{transform:scale(1.2)}
+.pol-tag{padding:.1rem .45rem;border-radius:999px;font-size:.58rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:#fff}
+
+/* Editorial row number in left gutter */
+.pol-num{
+  position:absolute;left:-2rem;top:50%;transform:translateY(-50%);
+  font-family:var(--fd);font-style:italic;font-size:.72rem;
+  color:var(--border);font-weight:300;user-select:none;
+  transition:color .2s;
+}
+.pol-card:hover .pol-num{color:var(--rose)}
+@media(max-width:580px){.pol-grid{padding-left:0}.pol-num{display:none}.pol-card{grid-template-columns:48px 1fr}.pol-right{display:none}}
+
+/* ═══════════════════════════════════
+   COLOR OF THE DAY — ENHANCED
+═══════════════════════════════════ */
+.cotd-section{margin-bottom:4rem;animation:fadeUp .6s .55s var(--ease) both}
+
+.cotd-card{
+  background:var(--surf);border:1px solid var(--border-s);
+  border-radius:var(--rxl);overflow:hidden;
+  box-shadow:var(--s2);transition:box-shadow .3s;
+}
+.cotd-card:hover{box-shadow:var(--s3)}
+
+/* Top hero colour band */
+.cotd-hero{height:160px;position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:1.5rem 2rem}
+.cotd-hero::before{content:'';position:absolute;inset:0;background:repeating-radial-gradient(ellipse at 30% 40%,rgba(255,255,255,.25) 0%,transparent 60%),repeating-radial-gradient(ellipse at 70% 60%,rgba(0,0,0,.08) 0%,transparent 55%);mix-blend-mode:overlay}
+/* Shimmer animation */
+.cotd-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.2) 50%,transparent 70%);transform:translateX(-100%);animation:shimmer 3s 1s ease-in-out infinite}
+@keyframes shimmer{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+.cotd-badge{position:relative;z-index:1;font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.9);background:rgba(0,0,0,.18);backdrop-filter:blur(6px);padding:.28rem .75rem;border-radius:999px}
+
+.cotd-body{padding:1.8rem 2rem 2rem}
+.cotd-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.4rem;flex-wrap:wrap}
+.cotd-name{font-family:var(--fd);font-size:1.8rem;font-weight:700;color:var(--text);line-height:1.1}
+.cotd-meta{display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
+.cotd-hex-chip{font-family:monospace;font-size:.8rem;font-weight:600;color:var(--texts);padding:.28rem .75rem;background:var(--surf2);border-radius:999px;border:1px solid var(--line)}
+.cotd-mood-chip{font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#fff;padding:.22rem .7rem;border-radius:999px}
+
+.cotd-quote{font-family:var(--fd);font-style:italic;font-weight:300;font-size:1.05rem;color:var(--texts);line-height:1.65;margin-bottom:1.6rem;padding-left:1rem;border-left:2px solid var(--rose)}
+
+/* Best For tabs */
+.bestfor-tabs{display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap}
+.bf-tab{padding:.38rem .9rem;border-radius:999px;border:1px solid var(--line);font-size:.74rem;font-weight:500;color:var(--texts);cursor:none;background:var(--surf);transition:background .2s,border-color .2s,color .2s,transform .15s}
+.bf-tab.active{color:#fff;border-color:transparent;transform:translateY(-1px)}
+.bf-tab:hover:not(.active){border-color:var(--rose);color:var(--rose)}
+
+.bestfor-panel{display:none;animation:fadeIn .3s var(--ease)}
+.bestfor-panel.show{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+.bf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem}
+.bf-card{
+  background:var(--surf2);border:1px solid var(--border-s);
+  border-radius:var(--rm);padding:1rem 1.1rem;
+  transition:transform .25s,box-shadow .25s,border-color .25s;cursor:none;
+}
+.bf-card:hover{transform:translateY(-3px);box-shadow:var(--s2);border-color:var(--rose)}
+.bf-card-icon{font-size:1.4rem;margin-bottom:.5rem}
+.bf-card-title{font-family:var(--fd);font-size:.88rem;font-weight:600;color:var(--text);margin-bottom:.3rem}
+.bf-card-desc{font-size:.74rem;font-weight:300;color:var(--texts);line-height:1.55}
+
+/* Fun fact ticker */
+.cotd-fact{
+  margin-top:1.4rem;padding:.85rem 1.2rem;
+  background:linear-gradient(110deg,rgba(232,120,154,.08),rgba(168,144,224,.08));
+  border:1px solid var(--border-s);border-radius:var(--rm);
+  display:flex;align-items:center;gap:.75rem;
+}
+.cotd-fact-ico{font-size:1.1rem;flex-shrink:0}
+.cotd-fact-txt{font-size:.78rem;font-weight:300;color:var(--texts);font-style:italic;line-height:1.55}
+.cotd-fact-txt strong{font-weight:500;color:var(--text);font-style:normal}
+
+/* ═══════════════════════════════════
+   IMAGE PALETTE ANALYSER
+═══════════════════════════════════ */
+.analyser-section{margin-bottom:4rem;animation:fadeUp .6s .6s var(--ease) both}
+
+.analyser-card{background:var(--surf);border:1px solid var(--border-s);border-radius:var(--rxl);padding:2.2rem;box-shadow:var(--s1);transition:box-shadow .3s}
+.analyser-card:hover{box-shadow:var(--s2)}
+
+.an-upload{
+  border:1.5px dashed var(--border);border-radius:var(--rl);
+  padding:2.4rem 1.5rem;text-align:center;cursor:none;
+  position:relative;overflow:hidden;
+  transition:border-color .25s,background .25s,transform .25s;
+}
+.an-upload::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(168,144,224,.07),transparent 65%);opacity:0;transition:opacity .3s;pointer-events:none}
+.an-upload:hover::before,.an-upload.over::before{opacity:1}
+.an-upload:hover,.an-upload.over{border-color:var(--lav);transform:translateY(-1px)}
+.an-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.an-icon{width:48px;height:48px;margin:0 auto 1.1rem;background:linear-gradient(135deg,rgba(168,144,224,.2),rgba(120,184,232,.2));border-radius:12px;display:flex;align-items:center;justify-content:center}
+.an-icon svg{width:22px;height:22px;stroke:var(--lav)}
+.an-title{font-family:var(--fd);font-size:1.1rem;font-weight:600;color:var(--text);margin-bottom:.3rem}
+.an-sub{font-size:.78rem;font-weight:300;color:var(--texts)}
+
+/* Analyser result */
+.an-result{display:none;margin-top:1.5rem;animation:fadeUp .4s var(--ease)}
+.an-result.show{display:block}
+.an-preview{width:100%;max-height:280px;object-fit:contain;border-radius:var(--rm);box-shadow:var(--s2);display:block;margin-bottom:1.4rem}
+
+.an-palette-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.4rem}
+.an-chip{
+  display:flex;align-items:center;gap:.5rem;
+  padding:.4rem .8rem;border-radius:999px;
+  background:var(--surf2);border:1px solid var(--border-s);
+  font-size:.75rem;font-weight:500;color:var(--text);
+  cursor:none;transition:transform .2s,box-shadow .2s;
+}
+.an-chip:hover{transform:translateY(-2px);box-shadow:var(--s1)}
+.an-chip-dot{width:18px;height:18px;border-radius:50%;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.an-chip-hex{font-family:monospace;font-size:.68rem;color:var(--texts)}
+
+.an-mood-badge{
+  display:inline-flex;align-items:center;gap:.5rem;
+  padding:.5rem 1.1rem;border-radius:999px;
+  font-family:var(--fd);font-size:.95rem;font-style:italic;font-weight:300;
+  color:#fff;margin-bottom:1.2rem;
+  box-shadow:0 4px 16px rgba(0,0,0,.12);
+}
+
+.an-advice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem}
+@media(max-width:480px){.an-advice-grid{grid-template-columns:1fr}}
+.an-advice-card{
+  background:var(--surf2);border:1px solid var(--border-s);
+  border-radius:var(--rm);padding:.9rem 1rem;
+  transition:transform .25s,border-color .25s;cursor:none;
+}
+.an-advice-card:hover{transform:translateY(-2px);border-color:var(--lav)}
+.an-advice-ico{font-size:1.2rem;margin-bottom:.4rem}
+.an-advice-title{font-family:var(--fd);font-size:.84rem;font-weight:600;color:var(--text);margin-bottom:.25rem}
+.an-advice-txt{font-size:.72rem;font-weight:300;color:var(--texts);line-height:1.55}
+
+/* ═══════════════════════════════════
+   UPLOAD + HISTORY
+═══════════════════════════════════ */
+.main-panel{display:grid;grid-template-columns:1fr 265px;gap:1.5rem;align-items:start;animation:fadeUp .7s .65s var(--ease) both}
+
+.upload-card{background:var(--surf);border:1px solid var(--border-s);border-radius:var(--rxl);padding:2.5rem;box-shadow:var(--s1);transition:box-shadow .3s,background .4s}
+.upload-card:focus-within{box-shadow:var(--s2)}
+.dz{border:1.5px dashed var(--border);border-radius:var(--rl);padding:3rem 1.5rem;text-align:center;cursor:none;position:relative;overflow:hidden;transition:border-color .25s,background .25s,transform .25s}
+.dz::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(232,120,154,.07),transparent 65%);opacity:0;transition:opacity .3s;pointer-events:none}
+.dz:hover::before,.dz.over::before{opacity:1}
+.dz:hover,.dz.over{border-color:var(--rose);background:rgba(232,120,154,.02);transform:translateY(-2px)}
+.dz.over{border-style:solid;box-shadow:0 0 0 4px rgba(232,120,154,.1)}
+.dz input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-ico{width:54px;height:54px;margin:0 auto 1.3rem;border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center;background:var(--surf2)}
+.dz-ico::before{content:'';position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(var(--rose),var(--peach),var(--gold),var(--sage),var(--sky),var(--lav),var(--rose));opacity:0;transition:opacity .3s;animation:spin 3s linear infinite}
+.dz-ico::after{content:'';position:absolute;inset:2px;border-radius:50%;background:var(--surf2);z-index:0}
+.dz:hover .dz-ico::before{opacity:1}
+.dz-ico svg{width:22px;height:22px;stroke:var(--rose);position:relative;z-index:1}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dz-title{font-family:var(--fd);font-size:1.2rem;font-weight:600;color:var(--text);margin-bottom:.35rem}
+.dz-sub{font-size:.8rem;font-weight:300;color:var(--texts);line-height:1.6}
+.dz-tip{margin-top:.9rem;font-size:.72rem;font-style:italic;color:var(--muted);padding:.4rem .8rem;background:var(--surf2);border-radius:999px;border:1px solid var(--line);display:inline-block}
+.dz-tags{display:inline-flex;gap:.3rem;margin-top:.8rem}
+.dz-tag{padding:.14rem .5rem;background:var(--surf2);border-radius:999px;font-size:.64rem;font-weight:500;letter-spacing:.07em;color:var(--texts);text-transform:uppercase}
+.dz-chosen{display:none;align-items:center;gap:.5rem;margin-top:1rem;padding:.6rem 1rem;background:var(--surf2);border:1px solid var(--line);border-radius:var(--rs);font-size:.82rem;font-weight:500;color:var(--text)}
+.dz-chosen.show{display:flex}
+.chk-ico{width:20px;height:20px;flex-shrink:0;border-radius:5px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--rose),var(--peach))}
+.chk-ico svg{width:11px;height:11px;stroke:#fff}
+.ch-nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.ch-sz{margin-left:auto;color:var(--texts);font-weight:300}
+
+.btn-colorize{width:100%;margin-top:1.4rem;padding:1rem 2rem;border:none;outline:none;border-radius:12px;background:var(--ink);color:#faf7f0;font-family:var(--fb);font-size:.9rem;font-weight:500;letter-spacing:.05em;cursor:none;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:.7rem;transition:transform .25s,box-shadow .25s}
+.btn-colorize::before{content:'';position:absolute;inset:0;background:linear-gradient(110deg,var(--rose),var(--peach),var(--gold));opacity:0;transition:opacity .28s}
+.btn-colorize:hover::before{opacity:1}
+.btn-colorize:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(232,120,154,.35)}
+.btn-colorize:active{transform:translateY(0);box-shadow:none}
+.btn-colorize>*{position:relative;z-index:1}
+.btn-colorize svg{width:16px;height:16px;stroke:currentColor}
+
+/* History */
+.hist{background:var(--surf);border:1px solid var(--border-s);border-radius:var(--rl);padding:1.4rem;box-shadow:var(--s1);transition:background .4s;position:sticky;top:2rem}
+.hist-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem}
+.hist-title{font-family:var(--fd);font-size:1rem;font-weight:600;color:var(--text)}
+.hist-cnt{font-size:.7rem;font-weight:500;color:var(--texts);padding:.12rem .55rem;background:var(--surf2);border-radius:999px}
+.hist-empty{text-align:center;padding:1.8rem 1rem;font-size:.78rem;font-weight:300;color:var(--texts);line-height:1.6}
+.hist-empty svg{width:30px;height:30px;stroke:var(--border);margin:0 auto .5rem;display:block}
+.hist-list{display:flex;flex-direction:column;gap:.5rem;max-height:400px;overflow-y:auto}
+.hist-list::-webkit-scrollbar{width:3px}
+.hist-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:999px}
+.hist-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;border-radius:var(--rs);background:var(--surf2);border:1px solid var(--line);cursor:none;transition:border-color .2s,transform .2s}
+.hist-item:hover{border-color:var(--rose);transform:translateX(2px)}
+.hist-thumb{width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--surf2)}
+.hist-meta{flex:1;min-width:0}
+.hist-name{font-size:.74rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-time{font-size:.66rem;font-weight:300;color:var(--texts);margin-top:.1rem}
+.hist-dl{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--surf);border:1px solid var(--line);text-decoration:none;transition:background .2s,border-color .2s}
+.hist-dl:hover{background:var(--rose);border-color:var(--rose)}
+.hist-dl:hover svg{stroke:#fff}
+.hist-dl svg{width:11px;height:11px;stroke:var(--texts)}
+
+/* ═══════════════════════════════════
+   LOADER
+═══════════════════════════════════ */
+#loader{display:none;padding:4rem 0;text-align:center;animation:fadeIn .4s}
+.chr-ring{width:52px;height:52px;margin:0 auto 1.8rem;position:relative}
+.chr-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--rose),var(--peach),var(--gold),var(--sage),var(--sky),var(--lav),var(--rose));animation:spin .9s linear infinite}
+.chr-ring::after{content:'';position:absolute;inset:5px;border-radius:50%;background:var(--bg)}
+.ld-step{font-size:.67rem;letter-spacing:.16em;text-transform:uppercase;font-weight:500;color:var(--rose);margin-bottom:.4rem}
+.ld-msg{font-family:var(--fd);font-size:1.3rem;font-style:italic;font-weight:300;color:var(--text);transition:opacity .3s}
+.ld-q{margin-top:1.1rem;font-size:.8rem;font-style:italic;color:var(--texts)}
+.prog{width:160px;height:2px;background:var(--line);border-radius:999px;margin:1.4rem auto 0;overflow:hidden}
+.prog-f{height:100%;background:linear-gradient(90deg,var(--rose),var(--peach),var(--gold),var(--sage));background-size:200%;border-radius:999px;animation:prog 3s ease-in-out infinite}
+@keyframes prog{0%{width:0%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}
+
+/* ═══════════════════════════════════
+   RESULT
+═══════════════════════════════════ */
+#result-section{display:none;animation:fadeUp .55s var(--ease) both}
+.res-hdr{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:.8rem}
+.res-title{font-family:var(--fd);font-size:1.6rem;font-weight:700;color:var(--text)}
+.res-title em{font-style:italic;font-weight:300;background:linear-gradient(110deg,var(--rose),var(--peach),var(--lav));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.badge-ok{display:inline-flex;align-items:center;gap:.38rem;padding:.28rem .85rem;background:#eef7ee;border:1px solid #b8ddb8;border-radius:999px;font-size:.68rem;font-weight:600;letter-spacing:.08em;color:#3a7a3a;text-transform:uppercase}
+.badge-ok::before{content:'';width:6px;height:6px;border-radius:50%;background:#4caf50}
+[data-theme="dark"] .badge-ok{background:rgba(74,175,74,.12);border-color:rgba(74,175,74,.3);color:#7fce7f}
+
+.cmp-wrap{border-radius:var(--rm);overflow:hidden;position:relative;user-select:none;-webkit-user-select:none;box-shadow:var(--s3);cursor:col-resize;background:#111;min-height:180px}
+#before-img{display:block;width:100%;max-height:520px;object-fit:contain}
+#after-img{position:absolute;top:0;left:0;height:100%;width:50%;object-fit:cover;object-position:left top;display:block;pointer-events:none}
+.sl-line{position:absolute;top:0;left:50%;transform:translateX(-50%);width:2px;height:100%;background:rgba(255,255,255,.92);box-shadow:0 0 10px rgba(0,0,0,.4);z-index:10;pointer-events:none}
+.sl-hdl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--rose),var(--peach),var(--gold));box-shadow:0 3px 16px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none}
+.sl-hdl svg{width:20px;height:20px;stroke:#fff}
+.cmp-wrap:active .sl-hdl{transform:translate(-50%,-50%) scale(1.12)}
+.sl-labels{position:absolute;bottom:1rem;left:0;right:0;display:flex;justify-content:space-between;padding:0 1rem;pointer-events:none;z-index:12}
+.sl-lbl{background:rgba(0,0,0,.52);backdrop-filter:blur(6px);color:#fff;font-size:.67rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.28rem .7rem;border-radius:999px}
+.live-tag{display:none;position:absolute;top:.75rem;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,var(--rose),var(--lav));color:#fff;font-size:.64rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.22rem .7rem;border-radius:999px;z-index:13;pointer-events:none;white-space:nowrap}
+.cmp-wrap:hover .live-tag{display:block}
+
+/* Palette story — INLINE EXPANDABLE */
+/* ── Palette Story — editorial spread ── */
+.story-section{
+  margin-top:1.4rem;
+  border:1px solid var(--border-s);
+  border-radius:var(--rxl);
+  overflow:hidden;
+  background:var(--surf);
+  box-shadow:var(--s2);
+  display:none;
+}
+.story-section.show{display:block;animation:fadeUp .5s var(--ease)}
+
+/* Trigger row — more inviting */
+.story-trigger{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:1.3rem 1.8rem;cursor:none;
+  background:linear-gradient(110deg,rgba(232,120,154,.06),rgba(168,144,224,.06));
+  border-bottom:1px solid var(--border-s);
+  transition:background .25s;
+}
+.story-trigger:hover{background:linear-gradient(110deg,rgba(232,120,154,.12),rgba(168,144,224,.12))}
+.story-trigger-left{display:flex;align-items:center;gap:.85rem}
+.story-trigger-dots{display:flex;gap:6px;align-items:center}
+.story-trigger-dot{
+  border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.15);
+  transition:transform .25s;
+}
+.story-trigger:hover .story-trigger-dot{transform:translateY(-2px)}
+.story-trigger-dot:nth-child(1){width:22px;height:22px}
+.story-trigger-dot:nth-child(2){width:18px;height:18px}
+.story-trigger-dot:nth-child(3){width:14px;height:14px}
+.story-trigger-dot:nth-child(4){width:11px;height:11px}
+.story-trigger-dot:nth-child(5){width:9px;height:9px}
+.story-trigger-text{display:flex;flex-direction:column;gap:.15rem}
+.story-trigger-label{font-family:var(--fd);font-size:1.05rem;font-weight:600;color:var(--text)}
+.story-trigger-sub{
+  font-size:.74rem;font-weight:300;color:var(--rose);
+  display:flex;align-items:center;gap:.35rem;
+}
+.story-trigger-sub::before{content:'✦';font-size:.6rem}
+.story-chevron{width:20px;height:20px;stroke:var(--rose);transition:transform .3s}
+.story-section.expanded .story-chevron{transform:rotate(180deg)}
+
+.story-content{
+  max-height:0;overflow:hidden;
+  transition:max-height .6s var(--ease);
+}
+.story-section.expanded .story-content{max-height:900px}
+
+/* Canvas hero — taller, richer */
+.story-canvas-wrap{position:relative;height:260px;overflow:hidden}
+.story-canvas-wrap canvas{width:100%;height:100%;display:block}
+
+/* Shimmer overlay animation */
+.story-canvas-shimmer{
+  position:absolute;inset:0;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);
+  animation:storyShimmer 3s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes storyShimmer{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+
+/* Floating particles on canvas */
+.story-particle{
+  position:absolute;border-radius:50%;pointer-events:none;
+  animation:storyFloat ease-in-out infinite alternate;
+}
+@keyframes storyFloat{0%{transform:translateY(0) scale(1);opacity:.6}100%{transform:translateY(-14px) scale(1.1);opacity:1}}
+
+.story-overlay-text{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.8rem;padding:2rem;text-align:center;
+}
+.story-title-txt{
+  font-family:var(--fd);font-size:2rem;font-weight:700;color:#fff;
+  text-shadow:0 2px 20px rgba(0,0,0,.3);letter-spacing:-.3px;
+  animation:storyTitleIn .6s .1s var(--ease) both;
+}
+@keyframes storyTitleIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.story-quote-txt{
+  font-family:var(--fd);font-style:italic;font-weight:300;font-size:1rem;
+  color:rgba(255,255,255,.9);text-shadow:0 1px 12px rgba(0,0,0,.25);
+  max-width:420px;line-height:1.55;
+  animation:storyTitleIn .6s .25s var(--ease) both;
+}
+.story-mood-tag{
+  display:inline-flex;align-items:center;gap:.4rem;
+  background:rgba(255,255,255,.2);backdrop-filter:blur(8px);
+  color:#fff;font-size:.68rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  padding:.28rem .8rem;border-radius:999px;border:1px solid rgba(255,255,255,.3);
+  animation:storyTitleIn .6s .4s var(--ease) both;
+}
+
+/* Bottom info strip */
+.story-bottom{
+  padding:1.6rem 1.8rem 1.8rem;
+  display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;
+  border-top:1px solid var(--border-s);
+}
+.story-palette-col{}
+.story-palette-label{font-size:.65rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--texts);margin-bottom:.65rem}
+.story-palette-row{display:flex;gap:6px;align-items:flex-end}
+.story-pal-dot{
+  border-radius:10px;box-shadow:var(--s1);
+  transition:transform .2s,box-shadow .2s;cursor:none;
+}
+.story-pal-dot:hover{transform:translateY(-4px);box-shadow:var(--s2)}
+/* Varied heights for visual interest */
+.story-pal-dot:nth-child(1){width:36px;height:36px}
+.story-pal-dot:nth-child(2){width:32px;height:32px}
+.story-pal-dot:nth-child(3){width:28px;height:28px}
+.story-pal-dot:nth-child(4){width:24px;height:24px}
+.story-pal-dot:nth-child(5){width:20px;height:20px}
+.story-pal-dot:nth-child(6){width:16px;height:16px}
+
+.story-meta-col{text-align:right;display:flex;flex-direction:column;justify-content:space-between}
+.story-date{font-size:.8rem;font-weight:300;color:var(--texts);font-style:italic}
+.story-fact{font-size:.74rem;font-weight:300;color:var(--texts);line-height:1.55;margin-top:.4rem;font-style:italic}
+.story-copy-btn{
+  display:inline-flex;align-items:center;gap:.4rem;
+  margin-top:.8rem;padding:.4rem .9rem;border-radius:999px;
+  background:linear-gradient(110deg,rgba(232,120,154,.12),rgba(168,144,224,.12));
+  border:1px solid rgba(232,120,154,.25);
+  font-size:.72rem;font-weight:500;color:var(--rose);cursor:none;
+  transition:background .2s,transform .2s;align-self:flex-end;
+}
+.story-copy-btn:hover{background:linear-gradient(110deg,rgba(232,120,154,.22),rgba(168,144,224,.22));transform:translateY(-1px)}
+
+.delight{margin-top:1rem;text-align:center;font-family:var(--fd);font-style:italic;font-size:1.05rem;font-weight:300;color:var(--texts)}
+.res-actions{display:flex;gap:.65rem;margin-top:1.3rem;flex-wrap:wrap;align-items:center}
+.btn-act{display:inline-flex;align-items:center;gap:.5rem;padding:.65rem 1.2rem;border-radius:var(--rs);font-family:var(--fb);font-size:.82rem;font-weight:500;cursor:none;text-decoration:none;transition:background .22s,border-color .22s,color .22s,transform .22s,box-shadow .22s}
+.btn-act svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0}
+.dl-fmts{display:flex;gap:.4rem;flex-wrap:wrap}
+.btn-fmt{display:inline-flex;align-items:center;gap:.35rem;padding:.5rem .9rem;border-radius:999px;background:var(--surf2);border:1px solid var(--line);font-family:var(--fb);font-size:.74rem;font-weight:500;color:var(--texts);cursor:none;text-decoration:none;transition:background .2s,border-color .2s,color .2s,transform .2s}
+.btn-fmt:hover{background:linear-gradient(110deg,var(--rose),var(--peach));border-color:transparent;color:#fff;transform:translateY(-1px)}
+.btn-fmt svg{width:12px;height:12px;stroke:currentColor}
+.btn-share{background:var(--surf);border:1px solid var(--line);color:var(--text)}
+.btn-share:hover{border-color:var(--lav);color:var(--lav);transform:translateY(-1px)}
+.btn-new{background:var(--surf2);border:1px solid var(--line);color:var(--texts)}
+.btn-new:hover{border-color:var(--muted);transform:translateY(-1px)}
+
+/* ═══════════════════════════════════
+   GALLERY
+═══════════════════════════════════ */
+.gal-section{display:none;margin-top:5rem;animation:fadeUp .5s var(--ease) both}
+.sec-hdr{display:flex;align-items:baseline;gap:.9rem;margin-bottom:1.5rem}
+.sec-title{font-family:var(--fd);font-size:1.4rem;font-weight:700;color:var(--text)}
+.sec-title em{font-style:italic;font-weight:300;background:linear-gradient(90deg,var(--rose),var(--lav));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sec-cnt{font-size:.74rem;font-weight:500;color:var(--texts);padding:.12rem .55rem;background:var(--surf2);border-radius:999px}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(138px,1fr));gap:10px}
+.g-item{aspect-ratio:1;border-radius:12px;overflow:hidden;background:var(--surf2);box-shadow:var(--s1);position:relative;cursor:none;transition:transform .25s,box-shadow .25s;animation:fadeIn .4s var(--ease) both}
+.g-item:hover{transform:translateY(-5px) scale(1.03);box-shadow:var(--s2)}
+.g-item::after{content:'View';position:absolute;inset:0;background:rgba(30,24,16,.42);color:#fff;font-size:.68rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s}
+.g-item:hover::after{opacity:1}
+.g-item img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* ═══════════════════════════════════
+   QUOTES STRIP
+═══════════════════════════════════ */
+.q-strip{margin:4.5rem 0 0;padding:2.5rem;background:linear-gradient(135deg,rgba(232,120,154,.07),rgba(168,144,224,.07),rgba(120,184,232,.06));border:1px solid var(--border-s);border-radius:var(--rxl);text-align:center;position:relative;overflow:hidden;animation:fadeUp .6s .8s var(--ease) both}
+.q-strip::before{content:'❝';position:absolute;top:-10px;left:1.5rem;font-size:6rem;font-family:var(--fd);color:var(--rose);opacity:.08;line-height:1}
+.q-txt{font-family:var(--fd);font-size:1.25rem;font-style:italic;font-weight:300;color:var(--text);line-height:1.5;min-height:2rem;transition:opacity .4s}
+.q-dots{display:flex;justify-content:center;gap:.4rem;margin-top:1.2rem}
+.qdot{width:5px;height:5px;border-radius:50%;background:var(--border);transition:background .3s,transform .3s;cursor:none}
+.qdot.active{background:var(--rose);transform:scale(1.4)}
+
+/* TIPS */
+.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:4.5rem;animation:fadeUp .7s .9s var(--ease) both}
+.tip{background:var(--surf);border:1px solid var(--border-s);border-radius:var(--rm);padding:1.4rem 1.2rem;transition:transform .25s,box-shadow .25s,background .4s;position:relative;overflow:hidden}
+.tip::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .3s}
+.tip:nth-child(1)::before{background:linear-gradient(90deg,var(--rose),var(--peach))}
+.tip:nth-child(2)::before{background:linear-gradient(90deg,var(--gold),var(--sage))}
+.tip:nth-child(3)::before{background:linear-gradient(90deg,var(--sky),var(--lav))}
+.tip:hover{transform:translateY(-3px);box-shadow:var(--s2)}.tip:hover::before{opacity:1}
+.tip-ico{width:36px;height:36px;background:var(--surf2);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:.9rem}
+.tip-ico svg{width:17px;height:17px;stroke:var(--rose)}
+.tip-name{font-family:var(--fd);font-size:.95rem;font-weight:600;color:var(--text);margin-bottom:.3rem}
+.tip-desc{font-size:.75rem;font-weight:300;color:var(--texts);line-height:1.65}
+
+/* FOOTER */
+footer{margin-top:6rem;padding:2rem 0 1rem;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.foot-logo{font-family:var(--fd);font-size:1.1rem;font-weight:600;color:var(--text)}
+.foot-logo em{font-style:italic;font-weight:300;background:linear-gradient(90deg,var(--rose),var(--peach));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.foot-copy{font-size:.74rem;font-weight:300;color:var(--texts);letter-spacing:.05em}
+
+/* TOAST */
+#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#faf7f0;font-size:.82rem;font-weight:500;padding:.65rem 1.4rem;border-radius:999px;box-shadow:var(--s2);opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;z-index:400;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* RESPONSIVE */
+@media(max-width:720px){.main-panel{grid-template-columns:1fr}.hist{position:static}.hist-list{max-height:220px}}
+@media(max-width:580px){header{flex-direction:column;align-items:flex-start;gap:.8rem}.upload-card{padding:1.5rem 1.2rem}.dz{padding:2.2rem 1rem}.tips{grid-template-columns:1fr}.res-actions,.dl-fmts{flex-direction:column;width:100%}.btn-act{justify-content:center}footer{flex-direction:column;align-items:flex-start}.cotd-body{padding:1.4rem}.an-advice-grid{grid-template-columns:1fr}}
+@media(max-width:380px){.hero h1{font-size:2.5rem}.pol-grid{columns:2}.gallery{grid-template-columns:repeat(2,1fr)}}
+
+/* ═══════════════════════════════════
+   MICRO-MAGAZINE TICKER
+═══════════════════════════════════ */
+.ticker-wrap{overflow:hidden;margin:3.5rem -2rem 0;position:relative}
+.ticker-wrap::before,.ticker-wrap::after{content:'';position:absolute;top:0;bottom:0;width:60px;z-index:2;pointer-events:none}
+.ticker-wrap::before{left:0;background:linear-gradient(90deg,var(--bg),transparent)}
+.ticker-wrap::after{right:0;background:linear-gradient(-90deg,var(--bg),transparent)}
+.ticker-track{display:flex;gap:0;animation:tickerScroll 38s linear infinite;width:max-content}
+.ticker-track:hover{animation-play-state:paused}
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-item{display:inline-flex;align-items:center;gap:.65rem;padding:.7rem 1.8rem;white-space:nowrap;border-right:1px solid var(--border-s);cursor:default;transition:background .2s}
+.ticker-item:hover{background:var(--surf)}
+.ticker-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;animation:tickDot 2s ease-in-out infinite alternate}
+@keyframes tickDot{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.3);opacity:1}}
+.ticker-category{font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--texts);flex-shrink:0}
+.ticker-text{font-family:var(--fd);font-style:italic;font-size:.82rem;font-weight:300;color:var(--text)}
+
+/* ═══════════════════════════════════
+   DRAG & MIX PALETTE
+═══════════════════════════════════ */
+.mix-section{margin-top:4.5rem;animation:fadeUp .6s .5s var(--ease) both}
+.mix-card{background:var(--surf);border:1px solid var(--border-s);border-radius:var(--rxl);padding:2rem 2.2rem;box-shadow:var(--s1);transition:box-shadow .3s,background .4s}
+.mix-card:hover{box-shadow:var(--s2)}
+.mix-palette-row{display:flex;gap:10px;margin:1.4rem 0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.mix-palette-row::-webkit-scrollbar{display:none}
+.mix-swatch{width:56px;height:56px;border-radius:14px;flex-shrink:0;cursor:grab;box-shadow:var(--s1);transition:transform .2s var(--ease),box-shadow .2s;position:relative}
+.mix-swatch:hover{transform:translateY(-4px) scale(1.08);box-shadow:var(--s2)}
+.mix-swatch.dragging{transform:scale(1.18) rotate(4deg);box-shadow:var(--s3);cursor:grabbing;z-index:50;opacity:.85}
+.mix-swatch.drag-over{transform:scale(1.12);box-shadow:0 0 0 3px var(--rose),var(--s2)}
+.mix-drop{border:2px dashed var(--border);border-radius:var(--rl);padding:1.8rem;text-align:center;transition:border-color .25s,background .25s;min-height:90px;display:flex;align-items:center;justify-content:center}
+.mix-drop.active{border-color:var(--rose);background:rgba(232,120,154,.03)}
+.mix-drop-label{font-size:.8rem;font-weight:300;color:var(--texts);pointer-events:none}
+.mix-result{margin-top:1.4rem;display:none;animation:fadeUp .4s var(--ease)}
+.mix-result.show{display:block}
+.mix-blend-display{height:80px;border-radius:var(--rm);position:relative;overflow:hidden;box-shadow:var(--s1);margin-bottom:1rem}
+.mix-blend-display::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.25) 50%,transparent 70%);animation:shimmer 2.5s ease-in-out infinite}
+.mix-blend-meta{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.mix-blend-hex{font-family:monospace;font-size:.78rem;font-weight:600;color:var(--text);padding:.28rem .75rem;background:var(--surf2);border-radius:999px;border:1px solid var(--line)}
+.mix-blend-name{font-family:var(--fd);font-size:.95rem;font-style:italic;font-weight:300;color:var(--texts)}
+.mix-actions{display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap}
+.mix-btn{display:inline-flex;align-items:center;gap:.45rem;padding:.5rem 1rem;border-radius:999px;font-family:var(--fb);font-size:.75rem;font-weight:500;cursor:none;border:1px solid var(--line);background:var(--surf2);color:var(--texts);transition:background .2s,border-color .2s,color .2s,transform .2s}
+.mix-btn:hover{transform:translateY(-1px);border-color:var(--rose);color:var(--rose)}
+.mix-btn svg{width:12px;height:12px;stroke:currentColor}
+.mix-saved{margin-top:1.2rem;display:flex;gap:8px;flex-wrap:wrap}
+.mix-saved-item{width:36px;height:36px;border-radius:10px;box-shadow:var(--s1);cursor:none;transition:transform .2s,box-shadow .2s}
+.mix-saved-item:hover{transform:translateY(-3px) scale(1.1);box-shadow:var(--s2)}
+
+/* ═══════════════════════════════════
+   PALETTE RECOMMENDATIONS BY CONTEXT
+═══════════════════════════════════ */
+@media(max-width:580px){.mix-swatch{width:44px;height:44px}}
+</style>
+</head>
+<body>
+<div id="cur"></div><div id="cdot"></div>
+<div id="toast">🔗 Link copied!</div>
+
+<!-- ══ SPLASH ════════════════════════════════ -->
+<div id="splash" aria-hidden="true">
+  <div id="splash-bg"></div>
+  <div class="sfog sfog-1"></div><div class="sfog sfog-2"></div>
+  <div class="sfog sfog-3"></div><div class="sfog sfog-4"></div>
+  <!-- Floating dots -->
+  <div class="sdot" style="width:14px;height:14px;background:#e8789a;opacity:.7;top:18%;left:14%;animation-duration:2.8s;animation-delay:0s"></div>
+  <div class="sdot" style="width:10px;height:10px;background:#e8c44a;opacity:.65;top:25%;right:16%;animation-duration:3.2s;animation-delay:.4s"></div>
+  <div class="sdot" style="width:12px;height:12px;background:#a890e0;opacity:.7;bottom:25%;left:20%;animation-duration:2.6s;animation-delay:.2s"></div>
+  <div class="sdot" style="width:8px;height:8px;background:#78b8e8;opacity:.6;bottom:20%;right:12%;animation-duration:3.5s;animation-delay:.6s"></div>
+  <div class="sdot" style="width:16px;height:16px;background:#7ec8a0;opacity:.6;top:14%;left:46%;animation-duration:3s;animation-delay:.1s"></div>
+  <div class="sdot" style="width:9px;height:9px;background:#f0a070;opacity:.65;top:60%;right:22%;animation-duration:2.9s;animation-delay:.35s"></div>
+  <div class="splash-inner">
+    <div class="splash-logo"><span class="sl-c">Color</span><span class="sl-dot">·</span><span class="sl-i">ify</span></div>
+    <div class="splash-bar"></div>
+    <p class="splash-tagline" id="splash-tw"></p>
+    <p class="splash-sub">AI Photo Colorization</p>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <a href="/" class="logo" aria-label="Colorify home">Color<span class="dot">·</span><em>ify</em></a>
+    <div class="hdr-r">
+      <button class="theme-btn" id="theme-btn" aria-label="Toggle dark mode">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun"  viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+      <div class="nav-pill"><span class="ldot" aria-hidden="true"></span>Color your Memories</div>
+    </div>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero" aria-labelledby="hero-h">
+    <p class="eyebrow">Powered by deep learning</p>
+    <h1 id="hero-h">Bring pixels<br><em>back to life.</em></h1>
+    <p class="hero-sub">Upload any black-and-white photograph and watch our AI breathe vibrant, natural color into every shadow, highlight, and memory.</p>
+    <div class="tw-pill">
+      <div class="tw-sw" id="tw-sw"></div>
+      <span class="tw-txt" id="tw-txt"><span class="tw-cur"></span></span>
+    </div>
+  </section>
+
+  <!-- POLAROID SWATCH GRID -->
+  <div class="pol-section">
+    <div class="section-hdr">
+      <h2 class="section-title">The Colorify <em>Palette</em></h2>
+      <span class="section-sub">Today's curated shades — refreshes every visit</span>
+    </div>
+    <div class="pol-grid" id="pol-grid" aria-label="Color palette cards"></div>
+  </div>
+
+  <!-- COLOR OF THE DAY -->
+  <div class="cotd-section">
+    <div class="section-hdr">
+      <h2 class="section-title">Color of the <em>Day</em></h2>
+      <span class="section-sub">Your daily editorial colour companion</span>
+    </div>
+    <div class="cotd-card">
+      <div class="cotd-hero" id="cotd-hero">
+        <span class="cotd-badge">✦ Today's Colour</span>
+      </div>
+      <div class="cotd-body">
+        <div class="cotd-top">
+          <div>
+            <div class="cotd-name" id="cotd-name"></div>
+          </div>
+          <div class="cotd-meta">
+            <span class="cotd-hex-chip" id="cotd-hex"></span>
+            <span class="cotd-mood-chip" id="cotd-mood"></span>
+          </div>
+        </div>
+        <p class="cotd-quote" id="cotd-quote"></p>
+
+        <!-- Best For tabs -->
+        <div class="bestfor-tabs" id="bf-tabs" role="tablist"></div>
+        <div id="bf-panels"></div>
+
+        <!-- Fun fact -->
+        <div class="cotd-fact">
+          <span class="cotd-fact-ico">✨</span>
+          <p class="cotd-fact-txt" id="cotd-fact"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMAGE PALETTE ANALYSER -->
+  <div class="analyser-section">
+    <div class="section-hdr">
+      <h2 class="section-title">Image Palette <em>Analyser</em></h2>
+      <span class="section-sub">Upload any photo — get its full editorial palette</span>
+    </div>
+    <div class="analyser-card">
+      <div class="an-upload" id="an-drop">
+        <input type="file" id="an-input" accept="image/*" aria-label="Upload photo for palette analysis"/>
+        <div class="an-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></div>
+        <p class="an-title">Drop any photo to extract its palette</p>
+        <p class="an-sub">Selfie · Outfit · Room · Flower · Anything</p>
+      </div>
+      <div class="an-result" id="an-result">
+        <img id="an-preview" src="" alt="Uploaded photo" class="an-preview"/>
+        <div class="an-palette-row" id="an-palette-row"></div>
+        <div class="an-mood-badge" id="an-mood-badge"></div>
+        <div class="an-advice-grid" id="an-advice-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD + HISTORY -->
+  <div class="main-panel">
+    <section aria-label="Upload your photo">
+      <div class="upload-card">
+        <!-- Flask: POST /colorize | multipart/form-data | field: "image" -->
+        <form id="col-form" action="/colorize" method="POST" enctype="multipart/form-data">
+          <div class="dz" id="dz" role="button" tabindex="0">
+            <input type="file" name="image" id="col-input" accept="image/*" required aria-label="Choose image"/>
+            <div class="dz-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+            <p class="dz-title">Drop your photo here</p>
+            <p class="dz-sub">or click to browse — any image format</p>
+            <p class="dz-tip">Pro tip: High-contrast B&W photos yield the most vibrant results</p>
+            <div class="dz-tags"><span class="dz-tag">JPG</span><span class="dz-tag">PNG</span><span class="dz-tag">WEBP</span><span class="dz-tag">BMP</span></div>
+          </div>
+          <div class="dz-chosen" id="dz-chosen">
+            <div class="chk-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+            <span class="ch-nm" id="ch-nm"></span><span class="ch-sz" id="ch-sz"></span>
+          </div>
+          <button type="submit" class="btn-colorize" id="btn-submit">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l2.5 2.5L16 9"/></svg>
+            <span id="btn-lbl">Colorize Image</span>
+          </button>
+        </form>
+      </div>
+    </section>
+    <aside class="hist" aria-label="History">
+      <div class="hist-hdr"><h2 class="hist-title">History</h2><span class="hist-cnt" id="hist-cnt">0</span></div>
+      <div id="hist-empty" class="hist-empty"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Colorized photos appear here</div>
+      <div class="hist-list" id="hist-list" style="display:none"></div>
+    </aside>
+  </div>
+
+  <!-- LOADER -->
+  <div id="loader" role="status" aria-live="polite">
+    <div class="chr-ring"></div>
+    <p class="ld-step" id="ld-step">Step 1 of 4</p>
+    <p class="ld-msg" id="ld-msg">Analysing luminance map…</p>
+    <div class="prog"><div class="prog-f"></div></div>
+    <p class="ld-q" id="ld-q"></p>
+  </div>
+
+  <!-- RESULT -->
+  <section id="result-section" aria-label="Result">
+    <div class="res-hdr">
+      <h2 class="res-title">Before &amp; <em>After</em></h2>
+      <span class="badge-ok">Colorized</span>
+    </div>
+    <div class="cmp-wrap" id="cmp-wrap">
+      <img id="before-img" src="" alt="Original"/>
+      <img id="after-img"  src="" alt="Colorized"/>
+      <div class="sl-line" id="sl-line"><div class="sl-hdl"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5l-5 7 5 7M16 5l5 7-5 7"/></svg></div></div>
+      <div class="sl-labels"><span class="sl-lbl">Original</span><span class="sl-lbl">Colorized</span></div>
+      <div class="live-tag">← Drag to compare →</div>
+    </div>
+
+    <!-- PALETTE STORY — inline expandable -->
+    <div class="story-section" id="story-section">
+      <div class="story-trigger" id="story-trigger">
+        <div class="story-trigger-left">
+          <div class="story-trigger-dots" id="story-trigger-dots"></div>
+          <div class="story-trigger-text">
+            <div class="story-trigger-label">Your Palette Story</div>
+            <div class="story-trigger-sub">Tap to reveal your editorial spread</div>
+          </div>
+        </div>
+        <svg class="story-chevron" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="story-content">
+        <div class="story-canvas-wrap">
+          <canvas id="story-canvas" width="940" height="260"></canvas>
+          <div class="story-canvas-shimmer"></div>
+          <div class="story-overlay-text">
+            <div class="story-mood-tag" id="story-mood-tag">✦ Your Palette Story</div>
+            <div class="story-title-txt" id="story-title-txt">Palette Story</div>
+            <div class="story-quote-txt" id="story-quote-txt"></div>
+          </div>
+        </div>
+        <div class="story-bottom">
+          <div class="story-palette-col">
+            <div class="story-palette-label">Extracted colours</div>
+            <div class="story-palette-row" id="story-pal-row"></div>
+          </div>
+          <div class="story-meta-col">
+            <span class="story-date" id="story-date"></span>
+            <p class="story-fact" id="story-fact"></p>
+            <button class="story-copy-btn" id="story-copy-btn" type="button">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copy hex codes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="delight" id="delight-msg"></p>
+    <div class="res-actions">
+      <div class="dl-fmts">
+        <a class="btn-fmt" id="dl-jpg" href="#" download="colorified.jpg"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>JPG</a>
+        <a class="btn-fmt" id="dl-png" href="#" download="colorified.png"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PNG</a>
+        <a class="btn-fmt" id="dl-webp" href="#" download="colorified.webp"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>WEBP</a>
+      </div>
+      <button class="btn-act btn-share" id="btn-share"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>Share</button>
+      <button class="btn-act btn-new" id="btn-reset"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>Colorize another</button>
+    </div>
+  </section>
+
+
+  <!-- MICRO-MAGAZINE TICKER -->
+  <div class="ticker-wrap" aria-hidden="true">
+    <div class="ticker-track" id="ticker-track"></div>
+  </div>
+
+  <!-- DRAG & MIX PALETTE -->
+  <div class="mix-section">
+    <div class="section-hdr">
+      <h2 class="section-title">Drag &amp; <em>Mix</em></h2>
+      <span class="section-sub">Blend two swatches while your photo colorizes — discover what they create</span>
+    </div>
+    <div class="mix-card">
+      <p style="font-size:.78rem;font-weight:300;color:var(--texts);margin-bottom:1rem">Drag any swatch into the blend zone, then drop a second colour to mix them together</p>
+      <div class="mix-palette-row" id="mix-palette-row"></div>
+      <div class="mix-drop" id="mix-drop">
+        <p class="mix-drop-label" id="mix-drop-label">Drop a colour here to blend</p>
+      </div>
+      <div class="mix-result" id="mix-result">
+        <div class="mix-blend-display" id="mix-blend-display"></div>
+        <div class="mix-blend-meta">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+            <div>
+              <span class="mix-blend-hex" id="mix-blend-hex"></span>
+              <span class="mix-blend-name" id="mix-blend-name"></span>
+            </div>
+            <span id="mix-count" style="font-size:.68rem;font-weight:500;color:var(--texts);padding:.15rem .55rem;background:var(--surf2);border-radius:999px;letter-spacing:.05em"></span>
+          </div>
+          <div id="mix-equation" style="font-size:.74rem;font-weight:300;color:var(--texts);margin-top:.35rem;letter-spacing:.02em"></div>
+          <div id="mix-blend-fact" style="font-size:.73rem;font-style:italic;font-weight:300;color:var(--texts);margin-top:.6rem;line-height:1.55;padding:.6rem .8rem;background:var(--surf2);border-radius:var(--rs);border-left:2px solid var(--rose)"></div>
+        </div>
+        <div class="mix-actions">
+          <button class="mix-btn" id="mix-save-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Save blend
+          </button>
+          <button class="mix-btn" id="mix-reset-btn" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+            Reset
+          </button>
+        </div>
+      </div>
+      <div id="mix-saved-section" style="display:none">
+        <p style="font-size:.72rem;font-weight:500;color:var(--texts);margin-top:1.2rem;margin-bottom:.5rem;letter-spacing:.06em;text-transform:uppercase">Saved blends</p>
+        <div class="mix-saved" id="mix-saved"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GALLERY -->
+  <section class="gal-section" id="gal-section">
+    <div class="sec-hdr"><h2 class="sec-title">Your <em>collection</em></h2><span class="sec-cnt" id="gal-cnt">0 images</span></div>
+    <div class="gallery" id="gallery"></div>
+  </section>
+
+  <!-- QUOTES -->
+  <div class="q-strip"><p class="q-txt" id="q-txt"></p><div class="q-dots" id="q-dots"></div></div>
+
+  <!-- TIPS -->
+  <div class="tips">
+    <div class="tip"><div class="tip-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><p class="tip-name">High contrast works best</p><p class="tip-desc">Clear shadows and highlights help the AI map natural hues with precision.</p></div>
+    <div class="tip"><div class="tip-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><p class="tip-name">Higher resolution</p><p class="tip-desc">Sharper scans produce richer results — aim for at least 800px wide.</p></div>
+    <div class="tip"><div class="tip-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div><p class="tip-name">Portraits shine</p><p class="tip-desc">Faces and skin tones are where AI colorization looks most breathtaking.</p></div>
+  </div>
+
+  <footer><div class="foot-logo">Color·<em>ify</em></div><p class="foot-copy">Colorify · AI colorization · Crafted with love</p></footer>
+</div>
+
+<script>
+/* ════════════════════════════
+   DATA
+════════════════════════════ */
+const TAGLINES=[
+  {t:'Be a soft riot of colors.',c:'#e8789a'},
+  {t:'Your palette tells your story.',c:'#a890e0'},
+  {t:'Play with hues, not rules.',c:'#f0a070'},
+  {t:'Life\'s better in layers of color.',c:'#e8c44a'},
+  {t:'Even muted tones have bold souls.',c:'#7ec8a0'},
+  {t:'Moments are more vivid in pastels.',c:'#78b8e8'},
+  {t:'Shimmer softly, strike boldly.',c:'#d4604a'},
+];
+
+// Swatch pool — picks fresh 8 on every load
+const SWATCH_POOL=[
+  {name:'Rose Petal',base:'#e8789a',shades:['#fce8f0','#f4b8d0','#e8789a','#d04878','#a82858'],tag:'Romantic',quote:'Soft edges, strong impact.'},
+  {name:'Peach Drift',base:'#f0a070',shades:['#fff0e8','#f8c8a8','#f0a070','#d87848','#b05028'],tag:'Warm',quote:'A splash of peach fixes everything.'},
+  {name:'Honey Gold',base:'#e8c44a',shades:['#fff8e0','#f8e090','#e8c44a','#c89820','#a07000'],tag:'Radiant',quote:'Even muted tones have bold souls.'},
+  {name:'Sage Mist',base:'#7ec8a0',shades:['#e8f8f0','#b8e8d0','#7ec8a0','#48a870','#207840'],tag:'Serene',quote:'Breathe. Let color do the rest.'},
+  {name:'Sky Haze',base:'#78b8e8',shades:['#e8f4fc','#b8d8f4','#78b8e8','#4888c0','#205890'],tag:'Calm',quote:'Clear and honest. Like a deep breath.'},
+  {name:'Lavender Fog',base:'#a890e0',shades:['#f0ecfc','#d0c0f4','#a890e0','#7860c0','#503898'],tag:'Dreamy',quote:'Glow softly, disrupt quietly.'},
+  {name:'Coral Dawn',base:'#d4604a',shades:['#fde8e4','#f4b0a0','#d4604a','#b03828','#801808'],tag:'Bold',quote:'Be a soft riot of colors.'},
+  {name:'Blush Sand',base:'#f2c0b0',shades:['#fff4f0','#f8d8cc','#f2c0b0','#d89080','#b06858'],tag:'Gentle',quote:'Your palette tells your story.'},
+  {name:'Mint Dew',base:'#90d8c0',shades:['#e8fcf8','#c0eee0','#90d8c0','#60b898','#308870'],tag:'Fresh',quote:'Life\'s better in layers of color.'},
+  {name:'Butter Cream',base:'#f8e090',shades:['#fffae8','#f8eeb8','#f8e090','#e0c060','#c09828'],tag:'Cozy',quote:'Sweet without trying.'},
+  {name:'Periwinkle',base:'#90a0e0',shades:['#eceeff','#c8d0f4','#90a0e0','#6070c0','#3848a0'],tag:'Electric',quote:'Shimmer softly, strike boldly.'},
+  {name:'Berry Blush',base:'#d890b8',shades:['#fce8f4','#f0c0d8','#d890b8','#b86098','#882870'],tag:'Vibrant',quote:'Moments are more vivid in pastels.'},
+];
+
+const COTD_LIST=[
+  {name:'Petal Rose',hex:'#e8789a',mood:'Romantic',moodBg:'linear-gradient(135deg,#e8789a,#f0a070)',
+   quote:'"Soft, persistent, unforgettable — like a first impression left on linen."',
+   fact:'<strong>Rose tones</strong> increase heart rate by up to 3 bpm. They\'re the most used color in luxury perfume packaging.',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Gorgeous on fair to medium warm skin. For deep skin tones, try a deeper berry-rose instead.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Pair with cream trousers for day. Add gold jewelry. Evening: dusty mauve and satin.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Bedroom accent wall with white linen. Pairs beautifully with antique brass and rattan.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'Peonies, garden roses, dusty miller. Perfect for a soft romantic bouquet with eucalyptus.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Impressionism and Rococo — think Renoir\'s soft brushwork. In design, this hue anchors luxury branding and editorial fashion layouts.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Rose lychee cocktail, strawberry pavlova, raspberry macarons. This is the palette of dessert menus and afternoon tea.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Rose is linked to the heart chakra — it promotes love, compassion, and emotional healing. Pair with rose quartz crystal and rose-scented essential oil.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Rose lip gloss over nude liner. Blush: soft berry. Nails: sheer rose or dusty pink gel. Eyeshadow: rose gold shimmer on the lid.'}},
+  {name:'Amber Dusk',hex:'#e8a44a',mood:'Nostalgic',moodBg:'linear-gradient(135deg,#e8c44a,#f0a070)',
+   quote:'"Warm like the last hour of golden light before everything goes quiet."',
+   fact:'<strong>Amber</strong> was one of the first pigments used in cave paintings, 40,000 years ago.',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Stunning on warm medium and deep skin tones. Brightens olive complexions beautifully.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Burnt orange linen shirt with white wide-leg trousers. Add tan leather accessories.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Kitchen tiles or a reading nook accent. Pairs with dark walnut wood and terracotta pots.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'Marigolds, sunflowers, dried wheat. A harvest-inspired arrangement with warm brown stems.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Baroque and Golden Age Dutch painting — Rembrandt\'s warm candlelight. In modern design, amber signals warmth and craftsmanship in artisan branding.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Salted caramel tart, mango lassi, amber whisky sour, honeycomb on a charcuterie board. Golden hour in edible form.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Amber activates the sacral chakra — creativity and sensuality. Pair with tiger\'s eye crystal and sweet orange essential oil.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Terracotta lip with warm bronzer. Nails: amber nude or burnt caramel. Eyeshadow: copper shimmer blended into warm brown.'}},
+  {name:'Sage Whisper',hex:'#7ec8a0',mood:'Serene',moodBg:'linear-gradient(135deg,#7ec8a0,#78b8e8)',
+   quote:'"Calm enough to hear your own thoughts. Quiet enough to finally listen."',
+   fact:'<strong>Sage green</strong> reduces cortisol levels — it\'s the most used color in hospital recovery rooms.',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Universally flattering. Especially beautiful against fair cool-toned and deep warm skin.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Sage linen blazer over white for work. Casual: sage co-ord set with white sneakers.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Kitchen cabinets, bathroom tiles, or living room feature wall. Pairs with warm oak.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'White cosmos, olive branches, eucalyptus. Botanical and effortlessly elegant.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Japanese wabi-sabi aesthetic and Scandinavian minimalism. In branding, sage signals organic, wellness, and sustainability — think beauty and skincare.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Matcha latte, pistachio cake, cucumber gin tonic, sage-infused cocktail. The taste of calm and botanical refinement.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Sage green opens the heart chakra and encourages balance. Pair with jade crystal and eucalyptus essential oil for a grounding ritual.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Sage nail polish is having a major moment. Pair with a barely-there lip and dewy skin. Eyeshadow: muted olive or mossy green.'}},
+  {name:'Lavender Hour',hex:'#a890e0',mood:'Dreamy',moodBg:'linear-gradient(135deg,#a890e0,#78b8e8)',
+   quote:'"The color of almost-night and almost-morning, held softly in between."',
+   fact:'<strong>Lavender</strong> was associated with royalty for centuries — purple dye cost more than gold in ancient Rome.',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Magical on cool fair and cool deep skin. Avoid if you have very sallow or yellow undertones.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Lilac slip dress with silver jewelry. Work: lavender blazer with charcoal trousers.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Nursery, meditation corner, or bedroom ceiling. Pair with white, silver, and soft grey.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'Lavender sprigs, sweet peas, white ranunculus. Dreamy and fragrant all at once.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Symbolism and Art Nouveau — Mucha\'s ethereal posters. In contemporary design, lavender leads the Y2K revival and soft luxury branding.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Lavender shortbread, blueberry cheesecake, violet lemonade, butterfly pea flower tea. Whimsical and photogenic.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Lavender is the crown chakra colour — intuition, peace, and spiritual awareness. Pair with amethyst crystal and lavender or frankincense oil.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Soft lavender eye look with white liner waterline. Nails: sheer periwinkle. Lip: lilac gloss or nothing at all — let the eyes do the work.'}},
+  {name:'Sky Pale',hex:'#78b8e8',mood:'Serene',moodBg:'linear-gradient(135deg,#78b8e8,#a890e0)',
+   quote:'"Clear and honest, like a deep breath you didn\'t know you needed."',
+   fact:'<strong>Sky blue</strong> is rated the world\'s favourite color across 30 countries in repeated global surveys.',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Beautifully clean on fair cool and medium neutral skin. Adds freshness to all complexions.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Sky blue button-down with white jeans — a forever classic. Add navy for depth.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Bathroom tiles or a child\'s bedroom. Pairs perfectly with white woodwork and brass taps.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'Delphiniums, blue hydrangea, baby\'s breath. Cool, airy, and architectural.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Romanticism landscapes and Impressionist skies — Monet\'s water and Constable\'s clouds. In branding, sky blue signals trust, openness, and clarity.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Butterfly pea flower cocktail, blueberry smoothie bowl, blue raspberry gelato. Light, airy, and almost too pretty to eat.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Sky blue calms the throat chakra — communication and self-expression. Pair with aquamarine crystal and peppermint or eucalyptus essential oil.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Baby blue graphic liner for an editorial look. Nails: powder blue or barely-there sky. Eyeshadow: soft cerulean wash blended up to the brow.'}},
+  {name:'Coral Embers',hex:'#d4604a',mood:'Energetic',moodBg:'linear-gradient(135deg,#d4604a,#e8a44a)',
+   quote:'"The boldest sunsets are made of this. Unapologetic and alive."',
+   fact:'<strong>Coral</strong> was Pantone\'s 2019 Color of the Year, described as "life-affirming and energizing."',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Electrifying on deep warm skin. Beautiful on medium warm too. Bold on fair skin.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Coral midi dress with nude heels. Unexpected but stunning: coral + cobalt blue.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Statement front door or dining room wall. Pairs with white, teak wood, and brass.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'Coral charm peonies, orange tulips, and tropical bird of paradise. Joyful and bold.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Fauvism and Pop Art — Matisse\'s bold colour fields. In design, coral brings energy to tech startups and fashion campaigns without the aggression of red.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Blood orange tart, aperol spritz, peach cobbler, papaya slices. Summer in every bite and sip.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Coral stimulates the root and sacral chakras — vitality and creative energy. Pair with carnelian crystal and sweet orange or cinnamon essential oil.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Coral is the ultimate summer lip colour — flattering on virtually everyone. Nails: coral-red gloss. Blush: warm peachy-coral for a sunkissed flush.'}},
+  {name:'Honey Soft',hex:'#e8c44a',mood:'Cozy',moodBg:'linear-gradient(135deg,#e8c44a,#f0a070)',
+   quote:'"Sweet without trying. Warm without effort. Golden without pretense."',
+   fact:'<strong>Yellow</strong> is the first color the human eye notices — it\'s processed 50ms faster than any other hue.',
+   skin:{title:'Skin Tones',icon:'✨',desc:'Warm yellow tones glow on brown and deep skin. For fair skin, choose a muted mustard version.'},
+   outfit:{title:'Outfit Ideas',icon:'👗',desc:'Mustard knit with wide-leg ecru trousers. Or a honey-toned slip for golden-hour magic.'},
+   home:{title:'Home Decor',icon:'🏡',desc:'Kitchen backsplash tiles or a sunny study. Pairs with dark green, terracotta, and white.'},
+   flower:{title:'Flower Pairings',icon:'🌸',desc:'Mimosa, yellow ranunculus, chamomile. Spring sunshine in a vase.'},
+   art:{title:'Art & Design',icon:'🎨',desc:'Post-Impressionism — Van Gogh\'s sunflowers and wheat fields. In design, golden yellow signals optimism, youth, and creativity. A staple in children\'s branding.'},
+   food:{title:'Food & Drink',icon:'🍰',desc:'Lemon tart, turmeric latte, champagne, mango sorbet, saffron rice. The taste of warmth, celebration, and morning light.'},
+   wellness:{title:'Wellness',icon:'🌿',desc:'Yellow activates the solar plexus chakra — confidence, personal power, and joy. Pair with citrine crystal and lemon or bergamot essential oil.'},
+   makeup:{title:'Nail & Makeup',icon:'💄',desc:'Butter yellow nails with a glossy finish. Warm gold highlighter on cheekbones. Eyeshadow: soft yellow ochre or shimmery champagne on the lid.'}},
+];
+
+const QUOTES=[
+  'Your palette tells your story.',
+  'Shades are emotions you can wear.',
+  'Life\'s better in layers of color.',
+  'Be a soft riot of colors.',
+  'Glow softly, disrupt quietly.',
+  'A splash of coral fixes everything.',
+  'Play with hues, not rules.',
+  'Moments are more vivid in pastels.',
+  'This is your cover story, darling.',
+  'Gentle doesn\'t mean invisible.',
+  'Shimmer softly, strike boldly.',
+  'Your feed, your rules, your shades.',
+];
+
+const STEPS=[
+  {s:'Step 1 of 4',m:'Analysing luminance map…'},
+  {s:'Step 2 of 4',m:'Mapping tonal gradients…'},
+  {s:'Step 3 of 4',m:'Weaving color threads…'},
+  {s:'Step 4 of 4',m:'Finishing with natural hues…'},
+];
+
+const DELIGHT=[
+  '✦ Your photo just got a whole new life.',
+  '✦ Time travel, but make it colorful.',
+  '✦ History never looked this good.',
+  '✦ Memories, now in full color.',
+  '✦ The AI found the color hiding inside.',
+  '✦ This is your cover story, darling.',
+];
+
+const MOODS=['Romantic','Dreamy','Serene','Nostalgic','Energetic','Cozy','Vibrant'];
+const MOOD_COLORS={'Romantic':'linear-gradient(135deg,#e8789a,#f0a070)','Dreamy':'linear-gradient(135deg,#a890e0,#78b8e8)','Serene':'linear-gradient(135deg,#78b8e8,#7ec8a0)','Nostalgic':'linear-gradient(135deg,#e8c44a,#f0a070)','Energetic':'linear-gradient(135deg,#d4604a,#e8a44a)','Cozy':'linear-gradient(135deg,#e8c44a,#f2c0b0)','Vibrant':'linear-gradient(135deg,#e8789a,#a890e0)'};
+
+const rand=a=>a[Math.floor(Math.random()*a.length)];
+const fmtSz=b=>b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB';
+const SPCOLS=['#e8789a','#f0a070','#e8c44a','#7ec8a0','#78b8e8','#a890e0'];
+
+/* ════════════════════════════
+   CURSOR
+════════════════════════════ */
+const cur=document.getElementById('cur'),cdot=document.getElementById('cdot');
+let mx=0,my=0,cx=0,cy=0,spk=0;
+document.addEventListener('mousemove',e=>{
+  mx=e.clientX;my=e.clientY;
+  cur.classList.add('vis');cdot.classList.add('vis');
+  cdot.style.left=mx+'px';cdot.style.top=my+'px';
+  if(++spk%5===0){
+    const s=document.createElement('div');s.className='sp';
+    const dx=(Math.random()-.5)*50,dy=(Math.random()-.5)*50;
+    s.style.cssText=`left:${mx}px;top:${my}px;width:5px;height:5px;background:${SPCOLS[spk%6]};--dx:${dx}px;--dy:${dy}px;`;
+    document.body.appendChild(s);setTimeout(()=>s.remove(),700);
+  }
+});
+(function lp(){cx+=(mx-cx)*.14;cy+=(my-cy)*.14;cur.style.left=cx+'px';cur.style.top=cy+'px';requestAnimationFrame(lp)})();
+function hov(el){if(!el)return;el.addEventListener('mouseenter',()=>cur.classList.add('hov'));el.addEventListener('mouseleave',()=>cur.classList.remove('hov'))}
+document.querySelectorAll('button,a,input,.dz,.an-upload,.pol-card,.bf-tab,.an-chip,.bf-card,.an-advice-card,.g-item,.hist-item,.qdot,.story-trigger').forEach(hov);
+
+/* ════════════════════════════
+   DARK MODE
+════════════════════════════ */
+document.getElementById('theme-btn').addEventListener('click',()=>{
+  const d=document.documentElement.getAttribute('data-theme')==='dark';
+  document.documentElement.setAttribute('data-theme',d?'light':'dark');
+});
+
+/* ════════════════════════════
+   SPLASH
+════════════════════════════ */
+{
+  const el=document.getElementById('splash-tw');
+  const item=rand(TAGLINES);
+  let i=0;
+  const t=()=>{if(i<=item.t.length){el.textContent=item.t.slice(0,i++);setTimeout(t,58)}}
+  setTimeout(t,600);
+}
+
+/* ════════════════════════════
+   HERO TYPEWRITER
+════════════════════════════ */
+{
+  const tw=document.getElementById('tw-txt'),sw=document.getElementById('tw-sw');
+  let idx=0,ch=0,del=false;
+  sw.style.background=TAGLINES[0].c;
+  const go=()=>{
+    const cur2=TAGLINES[idx];
+    if(!del){
+      ch++;tw.innerHTML=cur2.t.slice(0,ch)+'<span class="tw-cur"></span>';sw.style.background=cur2.c;
+      if(ch===cur2.t.length){del=true;setTimeout(go,2200);return}
+      setTimeout(go,55);
+    }else{
+      ch--;tw.innerHTML=cur2.t.slice(0,ch)+'<span class="tw-cur"></span>';
+      if(ch===0){del=false;idx=(idx+1)%TAGLINES.length;setTimeout(go,500);return}
+      setTimeout(go,28);
+    }
+  };
+  setTimeout(go,3500);
+}
+
+/* ════════════════════════════
+   EDITORIAL SWATCH ROWS
+   — 5 random shades per load, magazine column style
+════════════════════════════ */
+{
+  const grid=document.getElementById('pol-grid');
+  const pool=[...SWATCH_POOL].sort(()=>Math.random()-.5).slice(0,5);
+
+  pool.forEach((s,i)=>{
+    const card=document.createElement('div');card.className='pol-card';
+    card.style.animationDelay=(i*.06)+'s';
+
+    const shadesHtml=s.shades.slice(0,5).map(sh=>`<div class="pol-shade" style="background:${sh}"></div>`).join('');
+
+    card.innerHTML=`
+      <span class="pol-num">0${i+1}</span>
+      <div class="pol-color" style="background:${s.base}"></div>
+      <div class="pol-body">
+        <div class="pol-name">${s.name}</div>
+        <div class="pol-quote">${s.quote}</div>
+      </div>
+      <div class="pol-right">
+        <div class="pol-hex">${s.base}</div>
+        <div class="pol-shades">${shadesHtml}</div>
+        <div class="pol-tag" style="background:${s.base}">${s.tag}</div>
+      </div>`;
+    grid.appendChild(card);hov(card);
+  });
+}
+
+/* ════════════════════════════
+   COLOR OF THE DAY
+════════════════════════════ */
+{
+  const dayIdx=new Date().getDate()%COTD_LIST.length;
+  const c=COTD_LIST[dayIdx];
+  document.getElementById('cotd-hero').style.background=c.moodBg;
+  document.getElementById('cotd-name').textContent=c.name;
+  document.getElementById('cotd-hex').textContent=c.hex;
+  const moodChip=document.getElementById('cotd-mood');
+  moodChip.textContent=c.mood;moodChip.style.background=c.moodBg;
+  document.getElementById('cotd-quote').textContent=c.quote;
+  document.getElementById('cotd-fact').innerHTML=c.fact;
+
+  // Best For tabs — 8 categories
+  const tabs=document.getElementById('bf-tabs');
+  const panels=document.getElementById('bf-panels');
+  const BF_KEYS=[
+    {key:'skin',   label:'✨ Skin'},
+    {key:'outfit', label:'👗 Outfit'},
+    {key:'home',   label:'🏡 Home'},
+    {key:'flower', label:'🌸 Flowers'},
+    {key:'art',    label:'🎨 Art'},
+    {key:'food',   label:'🍰 Food & Drink'},
+    {key:'wellness',label:'🌿 Wellness'},
+    {key:'makeup', label:'💄 Makeup'},
+  ];
+  BF_KEYS.forEach((k,i)=>{
+    const tab=document.createElement('button');tab.className='bf-tab'+(i===0?' active':'');
+    tab.textContent=k.label;tab.dataset.key=k.key;
+    if(i===0)tab.style.background=c.moodBg;
+    tabs.appendChild(tab);hov(tab);
+
+    const panel=document.createElement('div');panel.className='bestfor-panel'+(i===0?' show':'');
+    panel.dataset.key=k.key;
+    const info=c[k.key];
+    const desc=Array.isArray(info.desc)?rand(info.desc):info.desc;
+    panel.innerHTML=`<div class="bf-grid">
+      <div class="bf-card">
+        <div class="bf-card-icon">${info.icon}</div>
+        <div class="bf-card-title">${info.title}</div>
+        <div class="bf-card-desc">${desc}</div>
+      </div>
+    </div>`;
+    panels.appendChild(panel);
+    panel.querySelectorAll('.bf-card').forEach(hov);
+  });
+
+  tabs.addEventListener('click',e=>{
+    const t=e.target.closest('.bf-tab');if(!t)return;
+    tabs.querySelectorAll('.bf-tab').forEach(tb=>{tb.classList.remove('active');tb.style.background=''});
+    t.classList.add('active');t.style.background=c.moodBg;
+    panels.querySelectorAll('.bestfor-panel').forEach(p=>{
+      p.classList.toggle('show',p.dataset.key===t.dataset.key);
+    });
+  });
+}
+
+/* ════════════════════════════
+   IMAGE PALETTE ANALYSER
+════════════════════════════ */
+{
+  const drop=document.getElementById('an-drop');
+  const input=document.getElementById('an-input');
+  const result=document.getElementById('an-result');
+  const preview=document.getElementById('an-preview');
+  const palRow=document.getElementById('an-palette-row');
+  const moodBadge=document.getElementById('an-mood-badge');
+  const advGrid=document.getElementById('an-advice-grid');
+
+  drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');const f=e.dataTransfer?.files?.[0];if(f&&f.type.startsWith('image/'))processFile(f)});
+  input.addEventListener('change',()=>{if(input.files[0])processFile(input.files[0])});
+
+  function processFile(file){
+    const url=URL.createObjectURL(file);
+    preview.src=url;
+    preview.onload=()=>{
+      const cols=extractColors(preview);
+      buildAnalyserResult(cols);
+    };
+  }
+
+  function extractColors(img){
+    const cv=document.createElement('canvas');cv.width=80;cv.height=80;
+    const ctx=cv.getContext('2d');
+    try{
+      ctx.drawImage(img,0,0,80,80);
+      const pts=[[8,8],[72,8],[40,40],[8,72],[72,72],[24,24],[56,56],[40,8],[8,40],[72,40],[24,56],[56,24]];
+      return [...new Set(pts.map(([x,y])=>{const d=ctx.getImageData(x,y,1,1).data;return `#${[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join('')}`}))].slice(0,6);
+    }catch{return['#e8789a','#f0a070','#e8c44a','#7ec8a0','#78b8e8','#a890e0']}
+  }
+
+  function detectMood(colors){
+    // Simple heuristic based on dominant hue
+    const hex=colors[0]||'#e8789a';
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    if(r>g&&r>b)return r>200?'Energetic':'Romantic';
+    if(g>r&&g>b)return'Serene';
+    if(b>r&&b>g)return'Dreamy';
+    return rand(MOODS);
+  }
+
+  function buildAnalyserResult(colors){
+    // Palette chips
+    palRow.innerHTML='';
+    colors.forEach(hex=>{
+      const chip=document.createElement('div');chip.className='an-chip';
+      chip.innerHTML=`<div class="an-chip-dot" style="background:${hex}"></div><span>${hex}</span>`;
+      palRow.appendChild(chip);hov(chip);
+    });
+
+    // Mood badge
+    const mood=detectMood(colors);
+    moodBadge.textContent='✦ '+mood+' mood';
+    moodBadge.style.background=MOOD_COLORS[mood]||'linear-gradient(135deg,#e8789a,#a890e0)';
+
+    // Build tabbed advice — 8 categories
+    const AN_TABS=[
+      {key:'skin',   label:'✨ Skin',    ico:'✨', title:'Skin Tone Match',
+       txt:{Romantic:'Warm pinks flatter medium to warm skin. Layer over nude and ivory.',Dreamy:'Soft purples and blues complement cool fair to medium skin tones.',Serene:'Cool greens and blues are universally flattering, especially on cool undertones.',Energetic:'Bold warm tones pop on deep skin. On fair skin, use as a delicate accent.',default:'These shades complement a wide range of skin tones — blend with your neutrals.'}},
+      {key:'outfit', label:'👗 Outfit',  ico:'👗', title:'Outfit Idea',
+       txt:{Romantic:'Soft rose midi dress with gold jewelry and cream linen trousers.',Dreamy:'Lilac slip dress with silver accessories — ethereal and effortless.',Serene:'Sage linen co-ord with white trainers and a woven bag.',Energetic:'Coral statement piece with neutral separates. Contrast with cobalt.',default:'A tonal look using these shades makes a polished, editorial-style outfit.'}},
+      {key:'home',   label:'🏡 Home',    ico:'🏡', title:'Home Decor',
+       txt:{Romantic:'Bedroom feature wall with linen bedding. Antique brass and rattan accents.',Dreamy:'Nursery or meditation corner. Pair with white, silver, and soft grey.',Serene:'Kitchen cabinets or bathroom tiles. Pairs beautifully with white and warm oak.',Energetic:'Statement dining room wall or front door. Pair with teak and white.',default:'Use the dominant shade as an accent wall, balanced with warm neutrals.'}},
+      {key:'flower', label:'🌸 Flowers', ico:'🌸', title:'Flower Pairing',
+       txt:{Romantic:'Peonies, garden roses, dusty miller. Soft and utterly romantic.',Dreamy:'Lavender, sweet peas, white ranunculus. Fragrant and ethereal.',Serene:'White cosmos, eucalyptus, and herbs. Botanical and airy.',Energetic:'Bird of paradise, coral charm peonies, orange tulips. Joyful and bold.',default:'Mix blooms in these tones for a curated, editorial-style arrangement.'}},
+      {key:'art',    label:'🎨 Art',     ico:'🎨', title:'Art & Design Style',
+       txt:{Romantic:'Impressionism and Rococo — Renoir\'s soft brushwork. In design: luxury editorial and feminine branding.',Dreamy:'Art Nouveau and Symbolism — Mucha\'s ethereal posters. Also leads the soft Y2K revival.',Serene:'Japandi minimalism and Scandinavian design. Signals calm, wellness, and organic beauty.',Energetic:'Fauvism and Pop Art — Matisse\'s bold colour fields. Perfect for energetic brand identities.',default:'This palette reads as editorial and curated — it suits refined lifestyle and beauty branding.'}},
+      {key:'food',   label:'🍰 Food',    ico:'🍰', title:'Food & Drink Vibe',
+       txt:{Romantic:'Rose lychee cocktail, strawberry pavlova, raspberry macarons. The palette of afternoon tea.',Dreamy:'Butterfly pea flower tea, blueberry cheesecake, violet lemonade. Whimsical and photogenic.',Serene:'Matcha latte, pistachio cake, cucumber gin tonic. The taste of botanical calm.',Energetic:'Blood orange tart, aperol spritz, peach cobbler. Summer in every sip.',default:'This palette evokes warmth and indulgence — think soft desserts and artisan beverages.'}},
+      {key:'wellness',label:'🌿 Wellness',ico:'🌿',title:'Wellness & Energy',
+       txt:{Romantic:'Rose quartz crystal, heart chakra energy. Promotes love and self-compassion. Pair with rose essential oil.',Dreamy:'Amethyst crystal, crown chakra. Intuition and peace. Pair with lavender or frankincense oil.',Serene:'Jade crystal, heart chakra balance. Promotes grounding and clarity. Pair with eucalyptus oil.',Energetic:'Carnelian crystal, sacral chakra vitality. Creative energy and motivation. Pair with orange oil.',default:'This palette carries calming energy. Ideal for breathwork, journaling, or a slow morning ritual.'}},
+      {key:'makeup', label:'💄 Makeup',  ico:'💄', title:'Nail & Makeup',
+       txt:{Romantic:'Rose lip gloss over nude liner. Sheer berry blush. Nails: dusty pink gel. Eyeshadow: rose gold shimmer.',Dreamy:'Soft lavender eye look with white liner on the waterline. Nails: sheer periwinkle. Lip: lilac gloss.',Serene:'Sage nail polish moment. Barely-there dewy lip. Eyeshadow: muted olive or mossy green.',Energetic:'Coral lip — flattering on virtually everyone. Peachy-coral blush. Nails: coral-red gloss.',default:'These tones translate beautifully into a soft, editorial makeup palette. Think blurred edges and glowing skin.'}},
+    ];
+
+    // Build tab strip + panels inside advGrid container
+    advGrid.innerHTML='';
+    const tabStrip=document.createElement('div');tabStrip.className='bestfor-tabs';tabStrip.style.marginBottom='1rem';
+    const panelWrap=document.createElement('div');
+
+    AN_TABS.forEach((t,i)=>{
+      // Tab
+      const tab=document.createElement('button');tab.className='bf-tab'+(i===0?' active':'');
+      tab.textContent=t.label;tab.dataset.key=t.key;
+      if(i===0)tab.style.background=MOOD_COLORS[mood]||'linear-gradient(135deg,#e8789a,#a890e0)';
+      tabStrip.appendChild(tab);hov(tab);
+
+      // Panel
+      const panel=document.createElement('div');panel.className='bestfor-panel'+(i===0?' show':'');
+      panel.dataset.key=t.key;
+      const txt=t.txt[mood]||t.txt.default;
+      panel.innerHTML=`<div class="bf-grid">
+        <div class="bf-card">
+          <div class="bf-card-icon">${t.ico}</div>
+          <div class="bf-card-title">${t.title}</div>
+          <div class="bf-card-desc">${txt}</div>
+        </div>
+      </div>`;
+      panelWrap.appendChild(panel);
+      panel.querySelectorAll('.bf-card').forEach(hov);
+    });
+
+    tabStrip.addEventListener('click',e=>{
+      const tb=e.target.closest('.bf-tab');if(!tb)return;
+      tabStrip.querySelectorAll('.bf-tab').forEach(b=>{b.classList.remove('active');b.style.background=''});
+      tb.classList.add('active');tb.style.background=MOOD_COLORS[mood]||'linear-gradient(135deg,#e8789a,#a890e0)';
+      panelWrap.querySelectorAll('.bestfor-panel').forEach(p=>{
+        p.classList.toggle('show',p.dataset.key===tb.dataset.key);
+      });
+    });
+
+    advGrid.appendChild(tabStrip);
+    advGrid.appendChild(panelWrap);
+
+    result.classList.add('show');
+  }
+}
+
+/* ════════════════════════════
+   QUOTES
+════════════════════════════ */
+{
+  let qi=0;
+  const qEl=document.getElementById('q-txt'),qDots=document.getElementById('q-dots');
+  const N=6;
+  for(let i=0;i<N;i++){const d=document.createElement('div');d.className='qdot'+(i===0?' active':'');d.addEventListener('click',()=>{qi=i;show()});qDots.appendChild(d);hov(d)}
+  function show(){qEl.style.opacity='0';setTimeout(()=>{qEl.textContent='"'+QUOTES[qi]+'"';qEl.style.opacity='1';document.querySelectorAll('.qdot').forEach((d,i)=>d.classList.toggle('active',i===qi%N))},350)}
+  show();setInterval(()=>{qi=(qi+1)%QUOTES.length;show()},8000);
+}
+
+/* ════════════════════════════
+   DROPZONE
+════════════════════════════ */
+const colInput=document.getElementById('col-input');
+const dz=document.getElementById('dz');
+const dzChosen=document.getElementById('dz-chosen');
+
+function showChosen(f){document.getElementById('ch-nm').textContent=f.name;document.getElementById('ch-sz').textContent=fmtSz(f.size);dzChosen.classList.add('show')}
+colInput.addEventListener('change',()=>{if(colInput.files[0])showChosen(colInput.files[0])});
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{dz.classList.remove('over');const f=e.dataTransfer?.files?.[0];if(f&&f.type.startsWith('image/')){const dt=new DataTransfer();dt.items.add(f);colInput.files=dt.files;showChosen(f)}});
+
+/* ════════════════════════════
+   LOADER
+════════════════════════════ */
+let ldT=null;
+function startLoader(){document.getElementById('loader').style.display='block';let i=0;document.getElementById('ld-step').textContent=STEPS[0].s;document.getElementById('ld-msg').textContent=STEPS[0].m;document.getElementById('ld-q').textContent='"'+rand(QUOTES)+'"';ldT=setInterval(()=>{i=(i+1)%STEPS.length;const m=document.getElementById('ld-msg');m.style.opacity='0';setTimeout(()=>{document.getElementById('ld-step').textContent=STEPS[i].s;m.textContent=STEPS[i].m;m.style.opacity='1'},220)},1700)}
+function stopLoader(){clearInterval(ldT);document.getElementById('loader').style.display='none'}
+
+/* ════════════════════════════
+   FORM SUBMIT → Flask /colorize
+════════════════════════════ */
+let lastUrl='',imgCount=0,histN=0,currentPalette=[];
+
+document.getElementById('col-form').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const file=colInput.files[0];if(!file)return;
+  document.getElementById('result-section').style.display='none';
+  document.getElementById('story-section').classList.remove('show','expanded');
+  startLoader();
+  document.getElementById('btn-lbl').textContent='Processing…';
+  document.getElementById('btn-submit').disabled=true;
+
+  const fd=new FormData();fd.append('image',file); // field='image' for Flask
+
+  try{
+    const res=await fetch('/colorize',{method:'POST',body:fd});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    stopLoader();
+    // Flask saves result to static/input.jpg
+    const colorUrl='/static/input.jpg?t='+Date.now();
+    const origUrl=URL.createObjectURL(file);
+    lastUrl=colorUrl;
+
+    document.getElementById('before-img').src=origUrl;
+    const ai=document.getElementById('after-img');
+    ai.onload=()=>{
+      document.getElementById('result-section').style.display='block';
+      document.getElementById('delight-msg').textContent=rand(DELIGHT);
+      [document.getElementById('dl-jpg'),document.getElementById('dl-png'),document.getElementById('dl-webp')].forEach(a=>a.href=colorUrl);
+
+      // Extract palette & build story
+      setTimeout(()=>{
+        currentPalette=extractPaletteFromImg(ai);
+        buildStory(currentPalette);
+        document.getElementById('story-section').classList.add('show');
+      },400);
+
+      addGallery(colorUrl,file.name);
+      addHistory(colorUrl,file.name);
+      initSlider();
+      requestAnimationFrame(()=>document.getElementById('result-section').scrollIntoView({behavior:'smooth',block:'start'}));
+    };
+    ai.src=colorUrl;
+  }catch(err){
+    stopLoader();alert('Something went wrong — please try again.');console.error(err);
+  }finally{
+    document.getElementById('btn-lbl').textContent='Colorize Image';
+    document.getElementById('btn-submit').disabled=false;
+  }
+});
+
+function extractPaletteFromImg(img){
+  const cv=document.createElement('canvas');cv.width=80;cv.height=80;
+  const ctx=cv.getContext('2d');
+  try{
+    ctx.drawImage(img,0,0,80,80);
+    const pts=[[8,8],[72,8],[40,40],[8,72],[72,72],[20,20],[60,60],[40,12]];
+    return [...new Set(pts.map(([x,y])=>{const d=ctx.getImageData(x,y,1,1).data;return `#${[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join('')}`}))].slice(0,6);
+  }catch{return['#e8789a','#f0a070','#e8c44a','#7ec8a0','#78b8e8','#a890e0']}
+}
+
+/* ════════════════════════════
+   PALETTE STORY — rich editorial
+════════════════════════════ */
+const STORY_FACTS=[
+  'Colors extracted from your unique photograph — no two palettes are ever identical.',
+  'The human eye can distinguish approximately 10 million distinct colors.',
+  'Ancient Egyptians used color symbolically — each hue carried spiritual meaning.',
+  'Synesthetes experience color as sound, taste, or texture.',
+  'The word "color" comes from the Latin "color," related to "celare" — to hide or conceal.',
+  'Impressionists were the first artists to paint shadows as colored, not grey.',
+  'The rarest natural pigment in history was Ultramarine, ground from lapis lazuli.',
+  'Warm colors advance visually; cool colors recede — the basis of all color composition.',
+];
+
+function detectStoryMood(palette){
+  const hex=palette[0]||'#e8789a';
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  if(r>g&&r>b)return r>180?'Energetic':'Romantic';
+  if(g>r&&g>b)return'Serene';
+  if(b>r&&b>g)return'Dreamy';
+  return'Nostalgic';
+}
+
+function buildStory(palette){
+  // ── Trigger dots (varied sizes) ──
+  const trigDots=document.getElementById('story-trigger-dots');
+  trigDots.innerHTML='';
+  palette.slice(0,5).forEach(hex=>{
+    const d=document.createElement('div');d.className='story-trigger-dot';d.style.background=hex;
+    trigDots.appendChild(d);
+    hov(d);
+  });
+
+  // ── Canvas — rich multi-layer ──
+  const cv=document.getElementById('story-canvas');
+  const ctx=cv.getContext('2d');
+  const W=940,H=260;
+
+  // Base gradient from palette
+  const g=ctx.createLinearGradient(0,0,W,H);
+  palette.forEach((c,i)=>g.addColorStop(i/Math.max(palette.length-1,1),c));
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  // Radial glow blobs
+  palette.slice(0,4).forEach((c,i)=>{
+    const x=W*.15+i*(W*.22),y=H*(.3+Math.sin(i)*.25);
+    const rg=ctx.createRadialGradient(x,y,0,x,y,W*.18);
+    rg.addColorStop(0,'rgba(255,255,255,.32)');
+    rg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+  });
+
+  // Soft vignette
+  const vig=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*.65);
+  vig.addColorStop(0,'rgba(0,0,0,0)');
+  vig.addColorStop(1,'rgba(0,0,0,.28)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+
+  // ── Floating particles ──
+  const wrap=document.querySelector('.story-canvas-wrap');
+  wrap.querySelectorAll('.story-particle').forEach(p=>p.remove());
+  palette.forEach((hex,i)=>{
+    const p=document.createElement('div');p.className='story-particle';
+    const size=6+Math.random()*10;
+    p.style.cssText=`width:${size}px;height:${size}px;background:${hex};opacity:.7;
+      left:${10+i*16}%;top:${15+Math.random()*60}%;
+      animation-duration:${2.5+Math.random()*2}s;
+      animation-delay:${Math.random()}s;filter:blur(1px)`;
+    wrap.appendChild(p);
+  });
+
+  // ── Mood tag ──
+  const mood=detectStoryMood(palette);
+  document.getElementById('story-mood-tag').textContent='✦ '+mood+' Palette';
+
+  // ── Quote ──
+  document.getElementById('story-quote-txt').textContent='"'+rand(QUOTES)+'"';
+
+  // ── Bottom palette dots ──
+  const palRow=document.getElementById('story-pal-row');
+  palRow.innerHTML='';
+  palette.forEach(hex=>{
+    const d=document.createElement('div');d.className='story-pal-dot';
+    d.style.background=hex;d.title=hex;palRow.appendChild(d);hov(d);
+  });
+
+  // ── Date ──
+  document.getElementById('story-date').textContent=
+    new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+  // ── Rotating fact ──
+  document.getElementById('story-fact').textContent=rand(STORY_FACTS);
+
+  // ── Copy hex codes button ──
+  const copyBtn=document.getElementById('story-copy-btn');
+  copyBtn.onclick=()=>{
+    navigator.clipboard.writeText(palette.join('  ·  ')).then(()=>{
+      const orig=copyBtn.textContent;copyBtn.textContent='✓ Copied!';
+      setTimeout(()=>copyBtn.innerHTML=`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy hex codes`,1600);
+    });
+  };
+  hov(copyBtn);
+}
+
+// Toggle expand
+document.getElementById('story-trigger').addEventListener('click',()=>{
+  document.getElementById('story-section').classList.toggle('expanded');
+});
+hov(document.getElementById('story-trigger'));
+
+/* SHARE */
+document.getElementById('btn-share').addEventListener('click',()=>{
+  navigator.clipboard.writeText(lastUrl||window.location.href).then(()=>{
+    const t=document.getElementById('toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);
+  });
+});
+
+/* RESET */
+document.getElementById('btn-reset').addEventListener('click',()=>{
+  document.getElementById('col-form').reset();dzChosen.classList.remove('show');
+  document.getElementById('result-section').style.display='none';
+  document.getElementById('story-section').classList.remove('show','expanded');
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+/* ════════════════════════════
+   GALLERY
+════════════════════════════ */
+function addGallery(url,name){
+  imgCount++;
+  const item=document.createElement('div');item.className='g-item';
+  const img=document.createElement('img');img.src=url;img.alt='Colorized: '+name;img.loading='lazy';
+  item.appendChild(img);document.getElementById('gallery').prepend(item);
+  document.getElementById('gal-cnt').textContent=imgCount+(imgCount===1?' image':' images');
+  document.getElementById('gal-section').style.display='block';
+  hov(item);
+}
+
+/* ════════════════════════════
+   HISTORY
+════════════════════════════ */
+function addHistory(url,name){
+  histN++;document.getElementById('hist-empty').style.display='none';
+  const hl=document.getElementById('hist-list');hl.style.display='flex';
+  document.getElementById('hist-cnt').textContent=histN;
+  const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const item=document.createElement('div');item.className='hist-item';
+  item.innerHTML=`<img class="hist-thumb" src="${url}" alt="${name}" loading="lazy"/>
+    <div class="hist-meta"><div class="hist-name">${name}</div><div class="hist-time">Today, ${ts}</div></div>
+    <a class="hist-dl" href="${url}" download="${name.replace(/\.[^.]+$/,'')}_colorified.jpg" title="Download">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </a>`;
+  hl.prepend(item);hov(item);
+}
+
+/* ════════════════════════════
+   SLIDER
+════════════════════════════ */
+function initSlider(){
+  let drag=false;
+  const sl=document.getElementById('sl-line'),ai=document.getElementById('after-img'),cw=document.getElementById('cmp-wrap');
+  function set(px){const r=cw.getBoundingClientRect();const p=Math.max(0,Math.min(100,((px-r.left)/r.width)*100));sl.style.left=p+'%';ai.style.width=p+'%'}
+  set(cw.getBoundingClientRect().left+cw.offsetWidth*.5);
+  cw.addEventListener('mousedown',e=>{drag=true;set(e.clientX)});
+  window.addEventListener('mouseup',()=>drag=false);
+  window.addEventListener('mousemove',e=>{if(drag)set(e.clientX)});
+  cw.addEventListener('touchstart',e=>{drag=true;set(e.touches[0].clientX)},{passive:true});
+  window.addEventListener('touchend',()=>drag=false);
+  window.addEventListener('touchmove',e=>{if(drag)set(e.touches[0].clientX)},{passive:true});
+}
+
+/* ════════════════════════════
+   MICRO-MAGAZINE TICKER
+════════════════════════════ */
+(function buildTicker(){
+  const ITEMS=[
+    {cat:'Color Fact',col:'#e8789a',txt:'Rose tones raise heart rate by up to 3 bpm \u2014 used in 80% of luxury perfume packaging worldwide.'},
+    {cat:'Design Tip',col:'#a890e0',txt:'The 60-30-10 rule: 60% dominant, 30% secondary, 10% accent \u2014 the formula for every balanced palette.'},
+    {cat:'Color Fact',col:'#e8c44a',txt:'Yellow is processed 50ms faster than any other colour \u2014 the eye notices it first, every single time.'},
+    {cat:'Wellness',  col:'#7ec8a0',txt:'Sage green reduces cortisol levels. It\'s the most used colour in hospital recovery rooms globally.'},
+    {cat:'Color Fact',col:'#78b8e8',txt:'Blue is the world\'s favourite colour \u2014 consistent across 30 countries in every major global survey.'},
+    {cat:'Color Fact',col:'#f0a070',txt:'Amber pigment was used in cave paintings over 40,000 years ago \u2014 one of humanity\'s oldest colours.'},
+    {cat:'Style Tip', col:'#e8789a',txt:'Coral-red lip is a timeless power move. Pair with bronzed skin and keep everything else minimal.'},
+    {cat:'Color Fact',col:'#d4604a',txt:'Coral was Pantone\'s 2019 Color of the Year \u2014 described as life-affirming, joyful, and energizing.'},
+    {cat:'Design Tip',col:'#a890e0',txt:'Lavender and sage together create the perfect Japandi palette \u2014 serene, considered, and timeless.'},
+    {cat:'Wellness',  col:'#e8789a',txt:'Rose quartz is the crystal of self-love. Pair with rose essential oil to promote compassion and calm.'},
+    {cat:'Style Tip', col:'#7ec8a0',txt:'Sage green is universally flattering \u2014 it works on every skin tone, every season, every occasion.'},
+    {cat:'Color Fact',col:'#a890e0',txt:'Purple dye once cost more than gold in ancient Rome. Only royalty could afford to wear it.'},
+    {cat:'Design Tip',col:'#e8c44a',txt:'Warm yellows make people feel more optimistic \u2014 cafes use them to subtly encourage faster eating.'},
+    {cat:'Wellness',  col:'#78b8e8',txt:'Blue lowers blood pressure and slows breathing \u2014 the most calming colour to have in a bedroom.'},
+    {cat:'Style Tip', col:'#f0a070',txt:'Terracotta eyeshadow flatters every eye colour. Pair with bronzed skin and a warm amber lip.'},
+    {cat:'Color Fact',col:'#7ec8a0',txt:'Green is the most restful colour for the eye \u2014 the retina requires zero adjustment to process it.'},
+    {cat:'Design Tip',col:'#e8789a',txt:'Analogous palettes \u2014 three adjacent colours \u2014 always feel naturally harmonious and sophisticated.'},
+    {cat:'Style Tip', col:'#a890e0',txt:'Lavender nails photograph beautifully \u2014 soft, editorial, and universally elegant for any occasion.'},
+  ];
+  const track=document.getElementById('ticker-track');
+  if(!track)return;
+  [...ITEMS,...ITEMS].forEach(item=>{
+    const el=document.createElement('div');el.className='ticker-item';
+    el.innerHTML=`<div class="ticker-dot" style="background:${item.col}"></div><span class="ticker-category">${item.cat}</span><span class="ticker-text">${item.txt}</span>`;
+    track.appendChild(el);
+  });
+})();
+
+/* ════════════════════════════
+   DRAG & MIX PALETTE — playful
+════════════════════════════ */
+(function initMix(){
+  const MIX_COLORS=[
+    {hex:'#e8789a',name:'Petal Rose',   emoji:'🌸'},
+    {hex:'#f0a070',name:'Peach Drift',  emoji:'🍑'},
+    {hex:'#e8c44a',name:'Honey Gold',   emoji:'✨'},
+    {hex:'#7ec8a0',name:'Sage Mist',    emoji:'🌿'},
+    {hex:'#78b8e8',name:'Sky Haze',     emoji:'☁️'},
+    {hex:'#a890e0',name:'Lavender Fog', emoji:'💜'},
+    {hex:'#d4604a',name:'Coral Dawn',   emoji:'🌅'},
+    {hex:'#f2c0b0',name:'Blush Sand',   emoji:'🏖️'},
+    {hex:'#90d8c0',name:'Mint Dew',     emoji:'🌱'},
+    {hex:'#f8e090',name:'Butter Cream', emoji:'🧁'},
+  ];
+
+  const BLEND_FACTS=[
+    'Mixing complementary colours creates a neutral — the secret behind every great neutral palette.',
+    'The word "blend" in colour theory means averaging the light wavelengths of two hues.',
+    'Painters call this "optical mixing" — placing colours side by side to let your eye blend them.',
+    'Every skin tone is a blend of red, yellow, and a touch of blue.',
+    'The most harmonious blends happen between analogous colours — neighbours on the colour wheel.',
+    'Sunrise and sunset are nature\'s most perfect colour blends — warm meets cool.',
+    'Henri Matisse once said: "Colour has a beauty of its own" — blending reveals that truth.',
+  ];
+
+  const NAME_MAP={
+    pink:'Antique Rose',salmon:'Desert Bloom',peach:'Nectar Glow',orange:'Amber Ember',
+    yellow:'Butter Cream',gold:'Solar Honey',green:'Garden Mist',teal:'Seafoam Dream',
+    blue:'Periwinkle Sky',purple:'Wisteria Haze',violet:'Dusk Petal',mauve:'Twilight Blush',
+    grey:'Driftwood',beige:'Linen Whisper',white:'Alabaster',brown:'Warm Espresso',
+  };
+
+  const palRow   = document.getElementById('mix-palette-row');
+  const dropZone = document.getElementById('mix-drop');
+  const dropLbl  = document.getElementById('mix-drop-label');
+  const resultDiv= document.getElementById('mix-result');
+  const blendDisp= document.getElementById('mix-blend-display');
+  const blendHexEl=document.getElementById('mix-blend-hex');
+  const blendNameEl=document.getElementById('mix-blend-name');
+  const saveBtn  = document.getElementById('mix-save-btn');
+  const resetBtn = document.getElementById('mix-reset-btn');
+  const savedSec = document.getElementById('mix-saved-section');
+  const savedRow = document.getElementById('mix-saved');
+
+  let dragHex=null, dragName=null, firstHex=null, firstName=null, curBlend=null, blendCount=0;
+
+  // Render swatch row
+  MIX_COLORS.forEach(c=>{
+    const sw=document.createElement('div');
+    sw.className='mix-swatch';sw.style.background=c.hex;
+    sw.title=c.name;sw.draggable=true;sw.dataset.hex=c.hex;
+
+    // Emoji label
+    const em=document.createElement('span');
+    em.style.cssText='position:absolute;bottom:3px;right:4px;font-size:.7rem;pointer-events:none';
+    em.textContent=c.emoji;sw.style.position='relative';sw.appendChild(em);
+
+    // Name tooltip on hover
+    const tt=document.createElement('div');
+    tt.style.cssText=`position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);
+      background:var(--ink);color:#fff;font-size:.62rem;font-weight:500;white-space:nowrap;
+      padding:.2rem .55rem;border-radius:6px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:10;`;
+    tt.textContent=c.name;sw.appendChild(tt);
+    sw.addEventListener('mouseenter',()=>tt.style.opacity='1');
+    sw.addEventListener('mouseleave',()=>tt.style.opacity='0');
+
+    sw.addEventListener('dragstart',e=>{
+      dragHex=c.hex;dragName=c.name;
+      sw.classList.add('dragging');
+      e.dataTransfer.effectAllowed='copy';
+    });
+    sw.addEventListener('dragend',()=>sw.classList.remove('dragging'));
+    sw.addEventListener('touchstart',()=>{dragHex=c.hex;dragName=c.name;sw.classList.add('dragging')},{passive:true});
+    sw.addEventListener('touchend',()=>sw.classList.remove('dragging'));
+
+    palRow.appendChild(sw);hov(sw);
+  });
+
+  // Blend maths
+  function blendHex(h1,h2){
+    const p=n=>parseInt(n,16);
+    const r=Math.round((p(h1.slice(1,3))+p(h2.slice(1,3)))/2);
+    const g=Math.round((p(h1.slice(3,5))+p(h2.slice(3,5)))/2);
+    const b=Math.round((p(h1.slice(5,7))+p(h2.slice(5,7)))/2);
+    return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+  }
+
+  function nameMixed(hex){
+    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    const max=Math.max(r,g,b),min=Math.min(r,g,b),l=(max+min)/2/255;
+    if(l>0.88)return NAME_MAP.white;if(l<0.25)return NAME_MAP.brown;if(max===min)return NAME_MAP.grey;
+    const d=max-min,s=d/(1-Math.abs(2*l-1))/255;
+    if(s<0.12)return l>0.6?NAME_MAP.beige:NAME_MAP.grey;
+    const h=(()=>{
+      if(max===r)return((g-b)/d+6)%6;
+      if(max===g)return(b-r)/d+2;return(r-g)/d+4;
+    })()*60;
+    if(h<20)return NAME_MAP.pink;if(h<38)return NAME_MAP.salmon;if(h<52)return NAME_MAP.peach;
+    if(h<65)return NAME_MAP.gold;if(h<80)return NAME_MAP.yellow;if(h<150)return NAME_MAP.green;
+    if(h<185)return NAME_MAP.teal;if(h<250)return NAME_MAP.blue;if(h<290)return NAME_MAP.purple;
+    if(h<320)return NAME_MAP.violet;if(h<345)return NAME_MAP.mauve;return NAME_MAP.pink;
+  }
+
+  // Burst sparkle from drop zone
+  function burstSparkles(hex){
+    const rect=dropZone.getBoundingClientRect();
+    const cx=rect.left+rect.width/2, cy=rect.top+rect.height/2;
+    for(let i=0;i<10;i++){
+      const s=document.createElement('div');s.className='sp';
+      const angle=Math.random()*Math.PI*2;
+      const dist=30+Math.random()*50;
+      s.style.cssText=`left:${cx}px;top:${cy}px;width:${4+Math.random()*5}px;height:${4+Math.random()*5}px;background:${hex};--dx:${Math.cos(angle)*dist}px;--dy:${Math.sin(angle)*dist}px;animation-duration:.8s;`;
+      document.body.appendChild(s);setTimeout(()=>s.remove(),900);
+    }
+  }
+
+  function showBlend(hex,src1,src2,n1,n2){
+    curBlend=hex;blendCount++;
+    // Gradient display
+    blendDisp.style.background=`linear-gradient(90deg,${src1} 0%,${hex} 50%,${src2} 100%)`;
+    blendHexEl.textContent=hex;
+    blendNameEl.textContent=nameMixed(hex);
+    // Rotating blend fact
+    const factEl=document.getElementById('mix-blend-fact');
+    if(factEl)factEl.textContent=rand(BLEND_FACTS);
+    // Mix equation label
+    const eqEl=document.getElementById('mix-equation');
+    if(eqEl)eqEl.innerHTML=`<span style="color:${src1}">●</span> ${n1} <span style="opacity:.5">+</span> <span style="color:${src2}">●</span> ${n2}`;
+    // Blend count badge
+    const cntEl=document.getElementById('mix-count');
+    if(cntEl)cntEl.textContent=blendCount+' blend'+(blendCount===1?'':'s');
+    resultDiv.classList.add('show');
+    burstSparkles(hex);
+  }
+
+  function handleDrop(){
+    if(!dragHex)return;
+    if(!firstHex){
+      firstHex=dragHex;firstName=dragName;
+      dropZone.style.background=firstHex;
+      dropZone.style.borderStyle='solid';
+      dropLbl.style.color='rgba(255,255,255,.9)';
+      dropLbl.innerHTML=`<strong style="display:block;font-size:1rem;margin-bottom:.3rem">${firstName}</strong>Now drop a second colour`;
+      burstSparkles(firstHex);
+    } else {
+      if(dragHex===firstHex){dragHex=null;return;} // same colour — skip
+      const blended=blendHex(firstHex,dragHex);
+      showBlend(blended,firstHex,dragHex,firstName,dragName);
+      const f=firstHex;firstHex=null;firstName=null;
+      setTimeout(()=>{
+        dropZone.style.background='';dropZone.style.borderStyle='';
+        dropLbl.style.color='';dropLbl.textContent='Drop a colour here to blend';
+      },900);
+    }
+    dragHex=null;dragName=null;
+  }
+
+  dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('active')});
+  dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('active'));
+  dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('active');handleDrop()});
+  dropZone.addEventListener('touchend',()=>handleDrop());
+
+  saveBtn.addEventListener('click',()=>{
+    if(!curBlend)return;
+    const dot=document.createElement('div');dot.className='mix-saved-item';
+    dot.style.background=curBlend;dot.title=curBlend;
+    // Pulse animation on save
+    dot.style.transform='scale(1.4)';setTimeout(()=>dot.style.transform='',350);
+    savedRow.prepend(dot);savedSec.style.display='block';hov(dot);
+  });
+
+  resetBtn.addEventListener('click',()=>{
+    firstHex=null;firstName=null;dragHex=null;dragName=null;curBlend=null;
+    dropZone.style.background='';dropZone.style.borderStyle='';
+    dropLbl.style.color='';dropLbl.textContent='Drop a colour here to blend';
+    resultDiv.classList.remove('show');
+  });
+
+  hov(saveBtn);hov(resetBtn);
+})();
+
+
+
+</script>
+</body>
+</html>
